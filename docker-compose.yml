@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  # PostgreSQL 数据库
+  postgres:
+    image: postgres:16-alpine
+    container_name: patent-postgres
+    environment:
+      POSTGRES_USER: patent_user
+      POSTGRES_PASSWORD: patent_password
+      POSTGRES_DB: patent_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/migrations:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U patent_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis 缓存
+  redis:
+    image: redis:7-alpine
+    container_name: patent-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 后端 Rust 服务
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: patent-backend
+    environment:
+      DATABASE_URL: postgres://patent_user:patent_password@postgres:5432/patent_db
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
+      JWT_EXPIRY_HOURS: 24
+      SERVER_PORT: 3000
+      FILE_STORAGE_PATH: /app/uploads
+      MAX_UPLOAD_SIZE_MB: 50
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    volumes:
+      - file_storage:/app/uploads
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # 前端 Vue 应用
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: patent-frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  file_storage:
+    driver: local
+
+networks:
+  default:
+    name: patent-network
