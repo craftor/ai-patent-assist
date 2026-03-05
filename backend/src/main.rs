@@ -7,7 +7,6 @@ mod services;
 
 use axum::{routing::{get, post}, Router};
 use tokio::net::TcpListener;
-use tracing_subscriber::fmt;
 use std::sync::Arc;
 
 use crate::config::Config;
@@ -16,14 +15,16 @@ use crate::db::create_pool;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 初始化日志
-    fmt::init();
+    tracing_subscriber::fmt::init();
 
     // 加载配置
     let config = Config::load()?;
+    tracing::info!("Loaded config");
     let config = Arc::new(config);
 
     // 创建数据库连接池（如果连接失败则继续运行）
     let pool = create_pool(&config.database_url).await.ok();
+    tracing::info!("Database pool created: {}", pool.is_some());
     let pool = pool.map(Arc::new);
 
     // 构建服务器状态

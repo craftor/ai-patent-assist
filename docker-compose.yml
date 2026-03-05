@@ -39,13 +39,10 @@ services:
       dockerfile: backend/Dockerfile
     container_name: patent-backend
     environment:
-      DATABASE_URL: postgres://patent_user:patent_password@postgres:5432/patent_db
-      REDIS_URL: redis://redis:6379
-      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
-      JWT_EXPIRY_HOURS: 24
-      SERVER_PORT: 3000
-      FILE_STORAGE_PATH: /app/uploads
-      MAX_UPLOAD_SIZE_MB: 50
+      APP__DATABASE_URL: postgres://patent_user:patent_password@postgres:5432/patent_db
+      APP__JWT_SECRET: dev-secret-change-in-production
+      APP__JWT_EXPIRY_HOURS: 24
+      APP__SERVER_PORT: 3000
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     volumes:
       - file_storage:/app/uploads
