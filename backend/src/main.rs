@@ -26,8 +26,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let pool = create_pool(&config.database_url).await.ok();
     let pool = pool.map(Arc::new);
 
+    // 构建服务器状态
+    let state = AppState {
+        pool: pool.clone(),
+        config: config.clone(),
+    };
+
     // 构建路由
-    let app = build_app(pool, config);
+    let app = build_app(state);
 
     // 启动服务器
     let addr = "0.0.0.0:3000";
@@ -39,21 +45,39 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn build_app(pool: Option<Arc<sqlx::PgPool>>, config: Arc<Config>) -> Router {
+fn build_app(state: AppState) -> Router {
     let api_routes = Router::new()
+        // 健康检查
         .route("/health", get(|| async { "OK" }))
+        // 认证相关
         .route("/api/auth/login", post(api::handlers::login))
         .route("/api/auth/register", post(api::handlers::register))
         .route("/api/auth/test-account", get(api::handlers::get_test_account))
+        .route("/api/auth/me", get(api::handlers::get_current_user))
+        .route("/api/auth/logout", post(api::handlers::logout))
+        // 用户管理
+        .route("/api/users", get(api::handlers::list_users))
+        .route("/api/users/:id", get(api::handlers::get_user))
+        .route("/api/users/:id", axum::routing::put(api::handlers::update_user))
+        .route("/api/users/:id", axum::routing::delete(api::handlers::delete_user))
+        // 项目管理
         .route("/api/projects", get(api::handlers::list_projects))
+        .route("/api/projects", post(api::handlers::create_project))
+        .route("/api/projects/:id", get(api::handlers::get_project))
+        .route("/api/projects/:id", axum::routing::put(api::handlers::update_project))
+        .route("/api/projects/:id", axum::routing::delete(api::handlers::delete_project))
+        .route("/api/projects/:id/attachments", post(api::handlers::upload_attachment))
+        .route("/api/projects/:id/attachments/:file_id", axum::routing::delete(api::handlers::delete_attachment))
+        // 专利生成
         .route("/api/patents/generate", post(api::handlers::generate_patent))
+        // 软著生成
         .route("/api/copyrights/generate", post(api::handlers::generate_copyright));
 
-    api_routes.with_state(ApiState { pool, config })
+    api_routes.with_state(state)
 }
 
 #[derive(Clone)]
-pub struct ApiState {
+pub struct AppState {
     pub pool: Option<Arc<sqlx::PgPool>>,
     pub config: Arc<Config>,
 }

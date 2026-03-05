@@ -2,13 +2,31 @@ mod auth;
 mod projects;
 mod patents;
 mod copyrights;
+mod templates;
+mod api_keys;
+mod ai;
+mod logs;
+mod users;
 
-pub use auth::{login, register, get_test_account};
-pub use projects::list_projects;
+pub use auth::{login, register, get_test_account, logout, get_current_user};
+pub use projects::{
+    list_projects,
+    get_project,
+    create_project,
+    update_project,
+    delete_project,
+    upload_attachment,
+    delete_attachment,
+};
 pub use patents::generate_patent;
 pub use copyrights::generate_copyright;
+pub use templates::{list_templates, create_template, update_template, delete_template};
+pub use api_keys::{list_keys, create_key, revoke_key};
+pub use ai::{list_models, add_model, update_model, delete_model, get_default_model, set_default_model};
+pub use logs::{list_audit_logs, list_ai_usage};
+pub use users::{list_users, get_user, update_user, delete_user};
 
-use axum::{http::StatusCode, Json};
+use axum::http::StatusCode;
 use serde::{Deserialize, Serialize};
 
 /// 通用 API 响应

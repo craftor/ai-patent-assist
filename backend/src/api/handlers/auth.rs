@@ -70,3 +70,18 @@ pub struct TestAccountInfo {
     pub password: String,
     pub description: String,
 }
+
+/// 登出
+pub async fn logout() -> Json<ApiResponse<()>> {
+    Json(ApiResponse::success(()))
+}
+
+/// 获取当前用户
+pub async fn get_current_user() -> Json<ApiResponse<UserResponse>> {
+    // 临时实现，返回测试用户
+    Json(ApiResponse::success(UserResponse {
+        id: "00000000-0000-0000-0000-000000000001".to_string(),
+        username: "admin".to_string(),
+        email: "admin@example.com".to_string(),
+    }))
+}

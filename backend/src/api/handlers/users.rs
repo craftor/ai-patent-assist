@@ -1,19 +1,29 @@
 use axum::{extract::{State, Path}, http::StatusCode, Json};
-use uuid::Uuid;
 
 use crate::api::handlers::ApiResponse;
-use crate::models::User;
+use crate::AppState;
+
+#[derive(Debug, serde::Serialize, sqlx::FromRow)]
+pub struct User {
+    pub id: String,
+    pub username: String,
+    pub email: String,
+    pub full_name: Option<String>,
+    pub avatar_url: Option<String>,
+}
 
 /// 获取用户列表
 pub async fn list_users(
-    State(state): State<crate::AppState>,
+    State(state): State<AppState>,
 ) -> Result<Json<ApiResponse<Vec<User>>>, StatusCode> {
-    let pool = &*state.pool;
+    let Some(pool) = state.pool.as_ref() else {
+        return Err(StatusCode::SERVICE_UNAVAILABLE);
+    };
 
     let users: Vec<User> = sqlx::query_as(
-        r#"SELECT * FROM users ORDER BY created_at DESC"#,
+        r#"SELECT id, username, email, full_name, avatar_url FROM users ORDER BY created_at DESC"#,
     )
-    .fetch_all(pool)
+    .fetch_all(pool.as_ref())
     .await
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
@@ -22,16 +32,18 @@ pub async fn list_users(
 
 /// 获取用户详情
 pub async fn get_user(
-    State(state): State<crate::AppState>,
-    Path(id): Path<Uuid>,
+    State(state): State<AppState>,
+    Path(id): Path<String>,
 ) -> Result<Json<ApiResponse<User>>, StatusCode> {
-    let pool = &*state.pool;
+    let Some(pool) = state.pool.as_ref() else {
+        return Err(StatusCode::SERVICE_UNAVAILABLE);
+    };
 
     let user: User = sqlx::query_as(
-        r#"SELECT * FROM users WHERE id = $1"#,
+        r#"SELECT id, username, email, full_name, avatar_url FROM users WHERE id = $1"#,
     )
-    .bind(id)
-    .fetch_optional(pool)
+    .bind(&id)
+    .fetch_optional(pool.as_ref())
     .await
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
     .ok_or(StatusCode::NOT_FOUND)?;
@@ -41,24 +53,26 @@ pub async fn get_user(
 
 /// 更新用户
 pub async fn update_user(
-    State(state): State<crate::AppState>,
-    Path(id): Path<Uuid>,
+    State(state): State<AppState>,
+    Path(id): Path<String>,
     Json(payload): Json<UpdateUserRequest>,
 ) -> Result<Json<ApiResponse<User>>, StatusCode> {
-    let pool = &*state.pool;
+    let Some(pool) = state.pool.as_ref() else {
+        return Err(StatusCode::SERVICE_UNAVAILABLE);
+    };
 
     let user: User = sqlx::query_as(
         r#"UPDATE users SET
             full_name = COALESCE($1, full_name),
             avatar_url = COALESCE($2, avatar_url),
             email = COALESCE($3, email)
-        WHERE id = $4 RETURNING *"#,
+        WHERE id = $4 RETURNING id, username, email, full_name, avatar_url"#,
     )
-    .bind(payload.full_name)
-    .bind(payload.avatar_url)
-    .bind(payload.email)
-    .bind(id)
-    .fetch_one(pool)
+    .bind(&payload.full_name)
+    .bind(&payload.avatar_url)
+    .bind(&payload.email)
+    .bind(&id)
+    .fetch_one(pool.as_ref())
     .await
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
@@ -67,14 +81,16 @@ pub async fn update_user(
 
 /// 删除用户
 pub async fn delete_user(
-    State(state): State<crate::AppState>,
-    Path(id): Path<Uuid>,
+    State(state): State<AppState>,
+    Path(id): Path<String>,
 ) -> Result<StatusCode, StatusCode> {
-    let pool = &*state.pool;
+    let Some(pool) = state.pool.as_ref() else {
+        return Err(StatusCode::SERVICE_UNAVAILABLE);
+    };
 
     sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(id)
-        .execute(pool)
+        .bind(&id)
+        .execute(pool.as_ref())
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
