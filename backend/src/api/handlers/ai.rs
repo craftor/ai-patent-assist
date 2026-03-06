@@ -5,7 +5,7 @@ use crate::api::handlers::ApiResponse;
 
 /// 列出 AI 模型
 pub async fn list_models(
-    State(state): State<crate::AppState>,
+    _state: State<crate::AppState>,
 ) -> Result<Json<ApiResponse<Vec<ModelResponse>>>, StatusCode> {
     // TODO: 实现
     Err(StatusCode::NOT_IMPLEMENTED)
@@ -13,7 +13,7 @@ pub async fn list_models(
 
 /// 添加模型
 pub async fn add_model(
-    State(state): State<crate::AppState>,
+    _state: State<crate::AppState>,
 ) -> Result<StatusCode, StatusCode> {
     // TODO: 实现
     Err(StatusCode::NOT_IMPLEMENTED)
@@ -21,8 +21,8 @@ pub async fn add_model(
 
 /// 更新模型
 pub async fn update_model(
-    State(state): State<crate::AppState>,
-    Path(id): Path<Uuid>,
+    _state: State<crate::AppState>,
+    Path(_id): Path<Uuid>,
 ) -> Result<StatusCode, StatusCode> {
     // TODO: 实现
     Err(StatusCode::NOT_IMPLEMENTED)
@@ -30,8 +30,8 @@ pub async fn update_model(
 
 /// 删除模型
 pub async fn delete_model(
-    State(state): State<crate::AppState>,
-    Path(id): Path<Uuid>,
+    _state: State<crate::AppState>,
+    Path(_id): Path<Uuid>,
 ) -> Result<StatusCode, StatusCode> {
     // TODO: 实现
     Err(StatusCode::NOT_IMPLEMENTED)
@@ -39,7 +39,7 @@ pub async fn delete_model(
 
 /// 获取默认模型
 pub async fn get_default_model(
-    State(state): State<crate::AppState>,
+    _state: State<crate::AppState>,
 ) -> Result<StatusCode, StatusCode> {
     // TODO: 实现
     Err(StatusCode::NOT_IMPLEMENTED)
@@ -47,7 +47,7 @@ pub async fn get_default_model(
 
 /// 设置默认模型
 pub async fn set_default_model(
-    State(state): State<crate::AppState>,
+    _state: State<crate::AppState>,
 ) -> Result<StatusCode, StatusCode> {
     // TODO: 实现
     Err(StatusCode::NOT_IMPLEMENTED)

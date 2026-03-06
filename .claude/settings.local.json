@@ -22,7 +22,15 @@
       "Bash(cd /home/craftor/project/ai-patent-assist/frontend && npm run build-only 2>&1)",
       "Bash(docker-compose down:*)",
       "Bash(docker-compose up:*)",
-      "Bash(docker run:*)"
+      "Bash(docker run:*)",
+      "Bash(cargo check:*)",
+      "Bash(docker:*)",
+      "Bash(~/.docker/config.json:*)",
+      "Bash(sed:*)",
+      "Bash(cargo build:*)",
+      "Bash(npm run:*)",
+      "Bash(npm install:*)",
+      "Bash(npx vite:*)"
     ]
   }
 }

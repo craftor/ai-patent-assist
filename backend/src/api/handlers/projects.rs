@@ -11,11 +11,11 @@ use crate::AppState;
 /// 项目数据结构
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub struct Project {
-    pub id: String,
-    pub user_id: String,
+    pub id: uuid::Uuid,
+    pub user_id: uuid::Uuid,
     pub name: String,
     pub description: Option<String>,
-    pub project_type: String,
+    pub r#type: String,
     pub status: String,
     pub metadata: serde_json::Value,
     pub created_at: chrono::DateTime<chrono::Utc>,
@@ -28,7 +28,7 @@ pub struct Project {
 pub struct CreateProjectRequest {
     pub name: String,
     pub description: Option<String>,
-    pub project_type: String,
+    pub r#type: String,
 }
 
 /// 更新项目请求
@@ -42,13 +42,13 @@ pub struct UpdateProjectRequest {
 /// 附件数据结构
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub struct Attachment {
-    pub id: String,
+    pub id: uuid::Uuid,
     pub project_id: String,
     pub file_name: String,
     pub file_path: String,
     pub file_type: Option<String>,
     pub file_size: Option<i64>,
-    pub uploaded_by: String,
+    pub uploaded_by: uuid::Uuid,
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
@@ -56,14 +56,10 @@ pub struct Attachment {
 pub async fn list_projects(
     State(state): State<AppState>,
 ) -> Json<ApiResponse<Vec<Project>>> {
-    let Some(pool) = state.pool.as_ref() else {
-        return Json(ApiResponse::error("Database not connected"));
-    };
-
     let projects = sqlx::query_as::<_, Project>(
         "SELECT * FROM projects ORDER BY updated_at DESC"
     )
-    .fetch_all(pool.as_ref())
+    .fetch_all(&*state.pool)
     .await;
 
     match projects {
@@ -80,15 +76,11 @@ pub async fn get_project(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Json<ApiResponse<Project>>, StatusCode> {
-    let Some(pool) = state.pool.as_ref() else {
-        return Err(StatusCode::SERVICE_UNAVAILABLE);
-    };
-
     let project = sqlx::query_as::<_, Project>(
         "SELECT * FROM projects WHERE id = $1"
     )
     .bind(&id)
-    .fetch_optional(pool.as_ref())
+    .fetch_optional(&*state.pool)
     .await;
 
     match project {
@@ -106,12 +98,8 @@ pub async fn create_project(
     State(state): State<AppState>,
     Json(req): Json<CreateProjectRequest>,
 ) -> Json<ApiResponse<Project>> {
-    let Some(pool) = state.pool.as_ref() else {
-        return Json(ApiResponse::error("Database not connected"));
-    };
-
     // 验证项目类型
-    if !["patent", "copyright"].contains(&req.project_type.as_str()) {
+    if !["patent", "copyright"].contains(&req.r#type.as_str()) {
         return Json(ApiResponse::error("Invalid project type"));
     }
 
@@ -125,11 +113,11 @@ pub async fn create_project(
         RETURNING *
         "#
     )
-    .bind(default_user_id)
+    .bind(uuid::Uuid::parse_str(default_user_id).unwrap())
     .bind(&req.name)
     .bind(&req.description)
-    .bind(&req.project_type)
-    .fetch_one(pool.as_ref())
+    .bind(&req.r#type)
+    .fetch_one(&*state.pool)
     .await;
 
     match project {
@@ -147,10 +135,6 @@ pub async fn update_project(
     Path(id): Path<String>,
     Json(req): Json<UpdateProjectRequest>,
 ) -> Result<Json<ApiResponse<Project>>, StatusCode> {
-    let Some(pool) = state.pool.as_ref() else {
-        return Err(StatusCode::SERVICE_UNAVAILABLE);
-    };
-
     // 验证状态值
     if let Some(ref status) = req.status {
         if !["draft", "in_progress", "review", "completed", "archived"].contains(&status.as_str()) {
@@ -161,7 +145,7 @@ pub async fn update_project(
     // 首先检查项目是否存在
     let existing = sqlx::query_as::<_, Project>("SELECT * FROM projects WHERE id = $1")
         .bind(&id)
-        .fetch_optional(pool.as_ref())
+        .fetch_optional(&*state.pool)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
@@ -196,7 +180,7 @@ pub async fn update_project(
     .bind(&description)
     .bind(&status)
     .bind(&id)
-    .fetch_one(pool.as_ref())
+    .fetch_one(&*state.pool)
     .await;
 
     match project {
@@ -213,13 +197,9 @@ pub async fn delete_project(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<StatusCode, StatusCode> {
-    let Some(pool) = state.pool.as_ref() else {
-        return Err(StatusCode::SERVICE_UNAVAILABLE);
-    };
-
     let result = sqlx::query("DELETE FROM projects WHERE id = $1")
         .bind(&id)
-        .execute(pool.as_ref())
+        .execute(&*state.pool)
         .await;
 
     match result {
@@ -239,11 +219,72 @@ pub async fn delete_project(
 
 /// 上传附件
 pub async fn upload_attachment(
-    State(_state): State<AppState>,
-    Path(_project_id): Path<String>,
+    State(state): State<AppState>,
+    Path(project_id): Path<String>,
+    mut multipart: axum::extract::Multipart,
 ) -> Json<ApiResponse<Attachment>> {
-    // TODO: 实现文件上传逻辑
-    Json(ApiResponse::error("File upload not implemented yet"))
+    // 获取第一个文件字段
+    let Some(field) = multipart.next_field().await.ok().flatten() else {
+        return Json(ApiResponse::error("No file provided"));
+    };
+
+    let file_name = field.file_name().unwrap_or("unknown").to_string();
+    let content_type = field.content_type().map(|ct| ct.to_string());
+    let data = field.bytes().await;
+
+    let Ok(data) = data else {
+        return Json(ApiResponse::error("Failed to read file data"));
+    };
+
+    let file_size = data.len() as i64;
+
+    // 生成唯一的文件 ID 和路径
+    let file_id = uuid::Uuid::new_v4().to_string();
+    let file_extension = file_name.split('.').last().unwrap_or("bin");
+    let file_path = format!("uploads/{}/{}.{}", project_id, file_id, file_extension);
+
+    // 创建上传目录（如果不存在）
+    let _ = tokio::fs::create_dir_all("uploads").await;
+
+    // 保存文件
+    match tokio::fs::write(&file_path, &data).await {
+        Ok(_) => {},
+        Err(e) => {
+            tracing::error!("Failed to save file: {}", e);
+            return Json(ApiResponse::error(format!("Failed to save file: {}", e)));
+        }
+    }
+
+    // 默认用户 ID
+    let default_user_id = "00000000-0000-0000-0000-000000000001";
+
+    // 保存到数据库
+    let attachment = sqlx::query_as::<_, Attachment>(
+        r#"
+        INSERT INTO project_attachments (id, project_id, file_name, file_path, file_type, file_size, uploaded_by)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING *
+        "#
+    )
+    .bind(&file_id)
+    .bind(&project_id)
+    .bind(&file_name)
+    .bind(&file_path)
+    .bind(content_type)
+    .bind(file_size)
+    .bind(uuid::Uuid::parse_str(default_user_id).unwrap())
+    .fetch_one(&*state.pool)
+    .await;
+
+    match attachment {
+        Ok(attachment) => Json(ApiResponse::success(attachment)),
+        Err(e) => {
+            tracing::error!("Failed to save attachment metadata: {}", e);
+            // 清理已保存的文件
+            let _ = tokio::fs::remove_file(&file_path).await;
+            Json(ApiResponse::error(format!("Failed to save attachment: {}", e)))
+        }
+    }
 }
 
 /// 删除附件
@@ -251,16 +292,27 @@ pub async fn delete_attachment(
     State(state): State<AppState>,
     Path((project_id, file_id)): Path<(String, String)>,
 ) -> Result<StatusCode, StatusCode> {
-    let Some(pool) = state.pool.as_ref() else {
-        return Err(StatusCode::SERVICE_UNAVAILABLE);
-    };
+    // 首先获取附件信息以便删除文件
+    let attachment = sqlx::query_as::<_, Attachment>(
+        "SELECT * FROM project_attachments WHERE project_id = $1 AND id = $2"
+    )
+    .bind(&project_id)
+    .bind(&file_id)
+    .fetch_optional(&*state.pool)
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    if let Some(attachment) = attachment {
+        // 删除文件
+        let _ = tokio::fs::remove_file(&attachment.file_path).await;
+    }
 
     let result = sqlx::query(
         "DELETE FROM project_attachments WHERE project_id = $1 AND id = $2"
     )
     .bind(&project_id)
     .bind(&file_id)
-    .execute(pool.as_ref())
+    .execute(&*state.pool)
     .await;
 
     match result {

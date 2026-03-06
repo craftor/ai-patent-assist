@@ -254,7 +254,7 @@ impl AiGenerator {
     ) -> Result<(), sqlx::Error> {
         let total_tokens = input_tokens + output_tokens;
 
-        sqlx::query_as::<_, AiUsageLog>(
+        sqlx::query(
             r#"
             INSERT INTO ai_usage_logs (
                 user_id, model_config_id, prompt_tokens, completion_tokens,
@@ -270,7 +270,7 @@ impl AiGenerator {
         .bind(duration_ms)
         .bind(status)
         .bind(error_message)
-        .fetch_optional(pool)
+        .execute(pool)
         .await?;
 
         Ok(())

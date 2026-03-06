@@ -5,7 +5,7 @@ use crate::api::handlers::ApiResponse;
 
 /// 列出审计日志
 pub async fn list_audit_logs(
-    State(state): State<crate::AppState>,
+    _state: State<crate::AppState>,
 ) -> Result<Json<ApiResponse<Vec<AuditLogResponse>>>, StatusCode> {
     // TODO: 实现
     Err(StatusCode::NOT_IMPLEMENTED)
@@ -13,7 +13,7 @@ pub async fn list_audit_logs(
 
 /// 列出 AI 使用日志
 pub async fn list_ai_usage(
-    State(state): State<crate::AppState>,
+    _state: State<crate::AppState>,
 ) -> Result<Json<ApiResponse<Vec<AiUsageResponse>>>, StatusCode> {
     // TODO: 实现
     Err(StatusCode::NOT_IMPLEMENTED)

@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 # Web 框架
-axum = "0.7"
+axum = { version = "0.7", features = ["multipart"] }
 tower = "0.4"
 tower-http = { version = "0.5", features = ["cors", "trace"] }
 
@@ -32,3 +32,9 @@ dotenvy = "0.15"
 
 # UUID
 uuid = { version = "1", features = ["v4", "serde"] }
+
+# HTTP 客户端
+reqwest = { version = "0.11", features = ["json"] }
+
+# 密码哈希
+argon2 = "0.5"

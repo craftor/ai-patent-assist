@@ -16,14 +16,10 @@ pub struct User {
 pub async fn list_users(
     State(state): State<AppState>,
 ) -> Result<Json<ApiResponse<Vec<User>>>, StatusCode> {
-    let Some(pool) = state.pool.as_ref() else {
-        return Err(StatusCode::SERVICE_UNAVAILABLE);
-    };
-
     let users: Vec<User> = sqlx::query_as(
         r#"SELECT id, username, email, full_name, avatar_url FROM users ORDER BY created_at DESC"#,
     )
-    .fetch_all(pool.as_ref())
+    .fetch_all(&*state.pool)
     .await
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
@@ -35,15 +31,11 @@ pub async fn get_user(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Json<ApiResponse<User>>, StatusCode> {
-    let Some(pool) = state.pool.as_ref() else {
-        return Err(StatusCode::SERVICE_UNAVAILABLE);
-    };
-
     let user: User = sqlx::query_as(
         r#"SELECT id, username, email, full_name, avatar_url FROM users WHERE id = $1"#,
     )
     .bind(&id)
-    .fetch_optional(pool.as_ref())
+    .fetch_optional(&*state.pool)
     .await
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
     .ok_or(StatusCode::NOT_FOUND)?;
@@ -57,10 +49,6 @@ pub async fn update_user(
     Path(id): Path<String>,
     Json(payload): Json<UpdateUserRequest>,
 ) -> Result<Json<ApiResponse<User>>, StatusCode> {
-    let Some(pool) = state.pool.as_ref() else {
-        return Err(StatusCode::SERVICE_UNAVAILABLE);
-    };
-
     let user: User = sqlx::query_as(
         r#"UPDATE users SET
             full_name = COALESCE($1, full_name),
@@ -72,7 +60,7 @@ pub async fn update_user(
     .bind(&payload.avatar_url)
     .bind(&payload.email)
     .bind(&id)
-    .fetch_one(pool.as_ref())
+    .fetch_one(&*state.pool)
     .await
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
@@ -84,13 +72,9 @@ pub async fn delete_user(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<StatusCode, StatusCode> {
-    let Some(pool) = state.pool.as_ref() else {
-        return Err(StatusCode::SERVICE_UNAVAILABLE);
-    };
-
     sqlx::query("DELETE FROM users WHERE id = $1")
         .bind(&id)
-        .execute(pool.as_ref())
+        .execute(&*state.pool)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 

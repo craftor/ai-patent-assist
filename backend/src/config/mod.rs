@@ -12,16 +12,32 @@ impl Config {
     pub fn load() -> Result<Self, config::ConfigError> {
         dotenvy::dotenv().ok();
 
-        let mut settings = config::Config::builder()
-            .set_default("database_url", "postgres://patent_user:patent_password@localhost:5432/patent_db")?
-            .set_default("jwt_secret", "dev-secret-change-in-production")?
-            .set_default("jwt_expiry_hours", 24)?
-            .set_default("server_port", 3000)?
-            .add_source(config::Environment::default()
-                .separator("__")
-                .prefix("APP")
-            );
+        // 直接使用环境变量，避免 config crate 对 URL 的错误解析
+        let database_url = std::env::var("DATABASE_URL")
+            .or_else(|_| std::env::var("APP__DATABASE_URL"))
+            .unwrap_or_else(|_| "postgres://patent_user:patent_password@localhost:5432/patent_db".to_string());
 
-        settings.build()?.try_deserialize()
+        let jwt_secret = std::env::var("JWT_SECRET")
+            .or_else(|_| std::env::var("APP__JWT_SECRET"))
+            .unwrap_or_else(|_| "dev-secret-change-in-production".to_string());
+
+        let jwt_expiry_hours = std::env::var("JWT_EXPIRY_HOURS")
+            .or_else(|_| std::env::var("APP__JWT_EXPIRY_HOURS"))
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(24);
+
+        let server_port = std::env::var("SERVER_PORT")
+            .or_else(|_| std::env::var("APP__SERVER_PORT"))
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(3000);
+
+        Ok(Config {
+            database_url,
+            jwt_secret,
+            jwt_expiry_hours,
+            server_port,
+        })
     }
 }

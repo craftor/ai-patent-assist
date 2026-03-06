@@ -11,6 +11,7 @@ use std::sync::Arc;
 
 use crate::config::Config;
 use crate::db::create_pool;
+use crate::services::AiGenerator;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -22,15 +23,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!("Loaded config");
     let config = Arc::new(config);
 
-    // 创建数据库连接池（如果连接失败则继续运行）
-    let pool = create_pool(&config.database_url).await.ok();
-    tracing::info!("Database pool created: {}", pool.is_some());
-    let pool = pool.map(Arc::new);
+    // 创建数据库连接池
+    let pool = create_pool(&config.database_url).await?;
+    tracing::info!("Database pool created");
+    let pool = Arc::new(pool);
+
+    // 初始化 AI 生成器
+    let ai_generator = AiGenerator::new(config.as_ref().clone());
+    let ai_generator = Arc::new(ai_generator);
 
     // 构建服务器状态
     let state = AppState {
         pool: pool.clone(),
         config: config.clone(),
+        ai_generator: ai_generator.clone(),
     };
 
     // 构建路由
@@ -79,6 +85,7 @@ fn build_app(state: AppState) -> Router {
 
 #[derive(Clone)]
 pub struct AppState {
-    pub pool: Option<Arc<sqlx::PgPool>>,
+    pub pool: Arc<sqlx::PgPool>,
     pub config: Arc<Config>,
+    pub ai_generator: Arc<AiGenerator>,
 }
