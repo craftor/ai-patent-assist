@@ -24,8 +24,8 @@
         </el-table-column>
         <el-table-column prop="is_system" label="系统模板" width="100">
           <template #default="{ row }">
-            <el-tag :type="row.is_system ? 'warning' : 'info'" size="small">
-              {{ row.is_system ? '系统' : '自定义' }}
+            <el-tag :type="isSystem(row) ? 'warning' : 'info'" size="small">
+              {{ isSystem(row) ? '系统' : '自定义' }}
             </el-tag>
           </template>
         </el-table-column>
@@ -37,7 +37,7 @@
               link
               type="danger"
               @click="handleDelete(row)"
-              :disabled="row.is_system"
+              :disabled="isSystem(row)"
             >
               删除
             </el-button>
@@ -404,6 +404,11 @@ const getTypeTagType = (type: TemplateType | string): 'success' | 'warning' | 'i
   return types[type] || 'info'
 }
 
+// 判断是否是系统模板（兼容字符串和布尔值）
+const isSystem = (row: Template): boolean => {
+  return row.is_system === true || row.is_system === 'true'
+}
+
 const fetchTemplates = async () => {
   loading.value = true
   try {
@@ -458,7 +463,7 @@ const handleEdit = (row: Template) => {
 }
 
 const handleDelete = async (row: Template) => {
-  if (row.is_system) {
+  if (isSystem(row)) {
     ElMessage.warning('系统模板无法删除')
     return
   }
