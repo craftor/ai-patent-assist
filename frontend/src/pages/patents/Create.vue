@@ -144,46 +144,66 @@
               发明内容
             </h3>
 
-            <el-form-item label="技术方案" prop="invention_description">
+            <el-form-item label="技术问题" prop="invention_description">
               <el-input
                 v-model="form.invention_description"
                 type="textarea"
-                :rows="6"
-                placeholder="请详细描述本发明的技术方案，包括：
-1. 本发明要解决的技术问题
-2. 解决技术问题采用的技术方案
-3. 本发明的有益效果
-
-请尽可能详细地描述技术实现细节..."
+                :rows="4"
+                placeholder="本发明要解决什么技术问题？"
                 maxlength="5000"
                 show-word-limit
               />
             </el-form-item>
 
-            <el-form-item label="具体实施方式" prop="embodiments_input">
-              <el-divider content-position="left">实施方式列表</el-divider>
-              <div v-for="(embodiment, index) in form.embodiments" :key="index" class="embodiment-item">
-                <el-input
-                  v-model="form.embodiments[index]"
-                  type="textarea"
-                  :rows="3"
-                  :placeholder="`实施方式 ${index + 1}`"
-                  maxlength="2000"
-                  show-word-limit
-                />
-                <el-button
-                  type="danger"
-                  size="small"
-                  @click="removeEmbodiment(index)"
-                  style="margin-top: 8px"
-                >
-                  删除
+            <el-form-item label="技术方案">
+              <el-input
+                v-model="technical_solution"
+                type="textarea"
+                :rows="4"
+                placeholder="为解决上述技术问题，本发明采用了什么技术方案？"
+                maxlength="5000"
+                show-word-limit
+              />
+            </el-form-item>
+
+            <el-form-item label="有益效果">
+              <el-input
+                v-model="beneficial_effects"
+                type="textarea"
+                :rows="4"
+                placeholder="本发明与现有技术相比有哪些有益效果？"
+                maxlength="5000"
+                show-word-limit
+              />
+            </el-form-item>
+
+            <el-form-item label="具体实施方式">
+              <div class="embodiment-section">
+                <div v-for="(embodiment, index) in form.embodiments" :key="index" class="embodiment-item">
+                  <div class="embodiment-header">
+                    <span class="embodiment-label">实施方式 {{ index + 1 }}</span>
+                    <el-button
+                      type="danger"
+                      size="small"
+                      @click="removeEmbodiment(index)"
+                      :disabled="form.embodiments.length <= 1"
+                    >
+                      删除
+                    </el-button>
+                  </div>
+                  <el-input
+                    v-model="form.embodiments[index]"
+                    type="textarea"
+                    :rows="4"
+                    placeholder="请描述该实施方式的具体内容..."
+                    maxlength="2000"
+                  />
+                </div>
+                <el-button type="primary" @click="addEmbodiment" style="margin-top: 10px">
+                  <el-icon><Plus /></el-icon>
+                  添加实施方式
                 </el-button>
               </div>
-              <el-button type="primary" @click="addEmbodiment" style="margin-top: 8px">
-                <el-icon><Plus /></el-icon>
-                添加实施方式
-              </el-button>
             </el-form-item>
           </div>
 
@@ -199,12 +219,7 @@
                 v-model="form.claims_input"
                 type="textarea"
                 :rows="4"
-                placeholder="请输入您初步构思的权利要求，如：
-1. 一种 XXX 方法，其特征在于，包括以下步骤：
-   步骤 A...
-   步骤 B...
-
-2. 根据权利要求 1 所述的方法，其特征在于..."
+                placeholder="请输入您初步构思的权利要求..."
                 maxlength="3000"
                 show-word-limit
               />
@@ -314,6 +329,10 @@ const selectedTemplateId = ref<string>('')
 const generating = ref(false)
 const showResultDialog = ref(false)
 
+// 额外字段，用于合并到 invention_description
+const technical_solution = ref('')
+const beneficial_effects = ref('')
+
 const form = reactive<CreatePatentForm>({
   project_id: '',
   patent_type: 'invention',
@@ -342,8 +361,8 @@ const rules: FormRules = {
     { min: 20, message: '背景技术描述至少 20 个字', trigger: 'blur' },
   ],
   invention_description: [
-    { required: true, message: '请输入发明内容', trigger: 'blur' },
-    { min: 30, message: '发明内容描述至少 30 个字', trigger: 'blur' },
+    { required: true, message: '请输入技术问题', trigger: 'blur' },
+    { min: 10, message: '技术问题描述至少 10 个字', trigger: 'blur' },
   ],
 }
 
@@ -394,35 +413,7 @@ const handleTemplateChange = () => {
   const template = selectedTemplate.value
   if (!template) return
 
-  // 解析模板内容，提取占位符对应的字段
-  const content = template.content_template
-
-  // 尝试从模板中提取字段值
-  const fieldMap: Record<string, string> = {
-    technical_field: extractTemplateField(content, '技术领域'),
-    background_art: extractTemplateField(content, '背景技术'),
-    invention_content: extractTemplateField(content, '发明内容'),
-    embodiment: extractTemplateField(content, '具体实施方式'),
-    claims: extractTemplateField(content, '权利要求书'),
-    abstract: extractTemplateField(content, '摘要'),
-  }
-
-  // 填充表单
-  if (fieldMap.technical_field) form.technical_field = fieldMap.technical_field
-  if (fieldMap.background_art) form.background_art = fieldMap.background_art
-  if (fieldMap.invention_content) form.invention_description = fieldMap.invention_content
-
-  ElMessage.success('已根据模板填充表单，请继续完善内容')
-}
-
-// 从模板内容中提取字段值
-const extractTemplateField = (content: string, fieldName: string): string => {
-  const regex = new RegExp(`##\\s*${fieldName}\\s*\\n([\\s\\S]*?)(?=##|$)`, 'i')
-  const match = content.match(regex)
-  if (match && match[1]) {
-    return match[1].trim().replace(/^\{.*\}$/, '') // 如果有占位符则返回空
-  }
-  return ''
+  ElMessage.success('已选择模板，请继续填写表单内容')
 }
 
 // 添加实施方式
@@ -454,30 +445,25 @@ const handleGenerate = async () => {
       return
     }
 
+    // 合并发明内容字段
+    const fullInventionContent = [
+      form.invention_description,
+      technical_solution.value,
+      beneficial_effects.value
+    ].filter(Boolean).join('\n\n')
+
     generating.value = true
     try {
       // TODO: 调用后端 AI 生成 API
-      // const response = await patentApi.generate({
-      //   project_id: form.project_id,
-      //   patent_type: form.patent_type,
-      //   title: form.title,
-      //   technical_field: form.technical_field,
-      //   background_art: form.background_art,
-      //   invention_description: form.invention_description,
-      //   embodiments: embodiments,
-      //   claims_input: form.claims_input,
-      // })
-
-      // 模拟生成结果（临时）
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      await new Promise(resolve => setTimeout(resolve, 1500))
 
       generatedData.value = {
         title: form.title,
         technical_field: form.technical_field,
         background_art: form.background_art,
-        invention_content: form.invention_description,
+        invention_content: fullInventionContent,
         claims_text: form.claims_input || '（待 AI 生成权利要求书）',
-        abstract_text: `本发明公开了${form.title}，属于${form.technical_field}领域。${form.invention_description?.substring(0, 200)}...`,
+        abstract_text: `本发明公开了${form.title}，属于${form.technical_field}领域。${technical_solution.value?.substring(0, 200)}...`,
       }
 
       ElMessage.success('AI 生成成功')
@@ -494,7 +480,6 @@ const handleGenerate = async () => {
 // 查看详情
 const handleViewDetail = () => {
   showResultDialog.value = false
-  // TODO: 跳转到详情页
   ElMessage.info('详情页功能待实现')
 }
 
@@ -563,8 +548,35 @@ onMounted(() => {
   line-height: 1.6;
 }
 
+.embodiment-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .embodiment-item {
-  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--el-fill-color-light);
+  border-radius: 8px;
+}
+
+.embodiment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.embodiment-label {
+  font-weight: 500;
+  color: var(--el-text-color-regular);
+}
+
+.embodiment-item :deep(.el-input),
+.embodiment-item :deep(.el-textarea) {
+  width: 100%;
 }
 
 .form-actions {
