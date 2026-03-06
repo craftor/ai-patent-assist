@@ -158,9 +158,28 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { Plus, MagicStick } from '@element-plus/icons-vue'
 import { projectApi, type Project } from '@/api/project'
-import { copyrightApi, type CopyrightDocument } from '@/api/copyright'
+import { copyrightApi, type CopyrightDocument as ApiCopyrightDocument } from '@/api/copyright'
 
 type DocumentStatus = 'draft' | 'reviewing' | 'approved' | 'rejected'
+
+interface CopyrightDocument {
+  id: string
+  project_id: string
+  software_name: string
+  software_version?: string
+  developer?: string
+  description?: string
+  function_features?: string
+  technical_features?: string
+  software_category?: string
+  operating_system?: string
+  programming_language?: string
+  line_count?: number
+  version: number
+  status: DocumentStatus
+  created_at: string
+  updated_at: string
+}
 
 interface CreateCopyrightParams {
   project_id: string
@@ -216,28 +235,12 @@ const filteredCopyrights = computed(() => {
 const fetchCopyrights = async () => {
   loading.value = true
   try {
-    // TODO: 调用后端 API 获取软著列表
-    // const response = await copyrightApi.list()
-    // if (response.data) {
-    //   copyrights.value = response.data
-    // }
-    // 临时：从项目列表获取软著类型的项
-    const response = await projectApi.list()
+    const response = await copyrightApi.list()
     if (response.data) {
-      copyrights.value = response.data
-        .filter(p => p.type === 'copyright')
-        .map(p => ({
-          id: p.id,
-          project_id: p.id,
-          software_name: p.name,
-          software_version: 'V1.0',
-          developer: '',
-          description: p.description || '',
-          status: p.status as DocumentStatus,
-          version: 1,
-          created_at: p.created_at,
-          updated_at: p.updated_at,
-        } as CopyrightDocument))
+      copyrights.value = response.data.map(c => ({
+        ...c,
+        status: c.status as DocumentStatus,
+      }))
     }
   } catch (error) {
     console.error('Failed to fetch copyrights:', error)

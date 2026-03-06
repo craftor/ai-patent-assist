@@ -33,22 +33,16 @@ pub use crate::api::handlers::projects::{
 
 // Patent handlers
 pub use crate::api::handlers::patents::{
-    generate as generate_patent,
+    list_patents,
     get_patent,
-    update_patent,
-    list_versions as list_patent_versions,
-    submit_review as submit_patent_review,
-    export_document as export_patent,
+    generate_patent,
 };
 
 // Copyright handlers
 pub use crate::api::handlers::copyrights::{
-    generate as generate_copyright,
+    list_copyrights,
     get_copyright,
-    update_copyright,
-    list_versions as list_copyright_versions,
-    submit_review as submit_copyright_review,
-    export_document as export_copyright,
+    generate_copyright,
 };
 
 // Template handlers

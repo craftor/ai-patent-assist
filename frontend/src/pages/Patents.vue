@@ -165,6 +165,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { Plus, MagicStick } from '@element-plus/icons-vue'
 import { projectApi, type Project } from '@/api/project'
+import { patentApi, type PatentDocument as ApiPatentDocument } from '@/api/patent'
 
 // 专利类型和状态类型
 type PatentType = 'invention' | 'utility' | 'design'
@@ -247,28 +248,13 @@ const filteredPatents = computed(() => {
 const fetchPatents = async () => {
   loading.value = true
   try {
-    // TODO: 调用后端 API 获取专利列表
-    // const response = await patentApi.list()
-    // if (response.data) {
-    //   patents.value = response.data
-    // }
-    // 临时：从项目列表获取专利类型的项
-    const response = await projectApi.list()
+    const response = await patentApi.list()
     if (response.data) {
-      patents.value = response.data
-        .filter(p => p.type === 'patent')
-        .map(p => ({
-          id: p.id,
-          project_id: p.id,
-          patent_type: 'invention' as PatentType,
-          title: p.name,
-          technical_field: p.description || '',
-          status: p.status as DocumentStatus,
-          version: 1,
-          created_at: p.created_at,
-          updated_at: p.updated_at,
-          claims: {},
-        }))
+      patents.value = response.data.map(p => ({
+        ...p,
+        patent_type: p.patent_type as PatentType,
+        status: p.status as DocumentStatus,
+      }))
     }
   } catch (error) {
     console.error('Failed to fetch patents:', error)

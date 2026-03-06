@@ -47,6 +47,8 @@ export interface UpdateCopyrightParams {
 }
 
 export const copyrightApi = {
+  list: () => http.get<CopyrightDocument[]>('/copyrights'),
+
   generate: (data: GenerateCopyrightParams) =>
     http.post<CopyrightDocument>('/copyrights/generate', data),
 

@@ -1,9 +1,39 @@
-use axum::{extract::State, Json};
+use axum::{
+    extract::{Path, State},
+    http::StatusCode,
+    Json,
+};
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 use crate::api::handlers::ApiResponse;
 use crate::AppState;
 use crate::models::AiModelConfig;
+
+/// 专利文档数据结构
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+pub struct PatentDocument {
+    pub id: Uuid,
+    pub project_id: Uuid,
+    pub patent_type: String,
+    pub title: String,
+    pub technical_field: Option<String>,
+    pub background_art: Option<String>,
+    pub invention_content: Option<String>,
+    pub claims: serde_json::Value,
+    pub abstract_text: Option<String>,
+    pub drawings_description: Option<String>,
+    pub embodiment: Option<String>,
+    pub ai_prompt: Option<String>,
+    pub ai_model: Option<String>,
+    pub version: i32,
+    pub status: String,
+    pub review_comments: Option<String>,
+    pub reviewed_by: Option<Uuid>,
+    pub reviewed_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
+}
 
 #[derive(Debug, Deserialize)]
 pub struct GeneratePatentRequest {
@@ -25,6 +55,90 @@ pub struct PatentResponse {
     pub duration_ms: i32,
 }
 
+/// 获取专利列表
+pub async fn list_patents(
+    State(state): State<AppState>,
+) -> Json<ApiResponse<Vec<PatentDocument>>> {
+    let patents = sqlx::query_as::<_, PatentDocument>(
+        r#"SELECT
+            id,
+            project_id,
+            patent_type::text as patent_type,
+            title,
+            technical_field,
+            background_art,
+            invention_content,
+            claims,
+            abstract_text,
+            drawings_description,
+            embodiment,
+            ai_prompt,
+            ai_model,
+            version,
+            status::text as status,
+            review_comments,
+            reviewed_by,
+            reviewed_at,
+            created_at,
+            updated_at
+        FROM patent_documents ORDER BY updated_at DESC"#
+    )
+    .fetch_all(&*state.pool)
+    .await;
+
+    match patents {
+        Ok(patents) => Json(ApiResponse::success(patents)),
+        Err(e) => {
+            tracing::error!("Failed to list patents: {}", e);
+            Json(ApiResponse::error("Failed to list patents"))
+        }
+    }
+}
+
+/// 获取单个专利详情
+pub async fn get_patent(
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+) -> Result<Json<ApiResponse<PatentDocument>>, StatusCode> {
+    let patent = sqlx::query_as::<_, PatentDocument>(
+        r#"SELECT
+            id,
+            project_id,
+            patent_type::text as patent_type,
+            title,
+            technical_field,
+            background_art,
+            invention_content,
+            claims,
+            abstract_text,
+            drawings_description,
+            embodiment,
+            ai_prompt,
+            ai_model,
+            version,
+            status::text as status,
+            review_comments,
+            reviewed_by,
+            reviewed_at,
+            created_at,
+            updated_at
+        FROM patent_documents WHERE id = $1"#
+    )
+    .bind(id)
+    .fetch_optional(&*state.pool)
+    .await;
+
+    match patent {
+        Ok(Some(patent)) => Ok(Json(ApiResponse::success(patent))),
+        Ok(None) => Err(StatusCode::NOT_FOUND),
+        Err(e) => {
+            tracing::error!("Failed to get patent: {}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+/// 生成专利
 pub async fn generate_patent(
     State(state): State<AppState>,
     Json(payload): Json<GeneratePatentRequest>,

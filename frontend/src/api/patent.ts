@@ -49,6 +49,8 @@ export interface UpdatePatentParams {
 }
 
 export const patentApi = {
+  list: () => http.get<PatentDocument[]>('/patents'),
+
   generate: (data: GeneratePatentParams) =>
     http.post<PatentDocument>('/patents/generate', data),
 

@@ -75,9 +75,13 @@ fn build_app(state: AppState) -> Router {
         .route("/api/projects/:id", axum::routing::delete(api::handlers::delete_project))
         .route("/api/projects/:id/attachments", post(api::handlers::upload_attachment))
         .route("/api/projects/:id/attachments/:file_id", axum::routing::delete(api::handlers::delete_attachment))
-        // 专利生成
+        // 专利管理
+        .route("/api/patents", get(api::handlers::list_patents))
+        .route("/api/patents/:id", get(api::handlers::get_patent))
         .route("/api/patents/generate", post(api::handlers::generate_patent))
-        // 软著生成
+        // 软著管理
+        .route("/api/copyrights", get(api::handlers::list_copyrights))
+        .route("/api/copyrights/:id", get(api::handlers::get_copyright))
         .route("/api/copyrights/generate", post(api::handlers::generate_copyright));
 
     api_routes.with_state(state)
