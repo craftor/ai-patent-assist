@@ -166,4 +166,84 @@ test.describe('专利和软著详情页测试', () => {
     expect(listUrl).toMatch(/\/copyrights$/);
     console.log('返回功能正常');
   });
+
+  test('专利详情页编辑功能', async ({ page }) => {
+    await page.goto('/patents');
+    await page.waitForTimeout(3000);
+    await page.waitForSelector('.el-table__row');
+
+    // 点击第一个专利的编辑按钮
+    const firstRow = page.locator('.el-table__row').first();
+    const editButton = firstRow.locator('button').nth(2); // 详情 (0), AI 生成 (1), 编辑 (2)
+    await editButton.click();
+    await page.waitForTimeout(5000);
+
+    // 截图调试
+    await page.screenshot({ path: 'test-results/patent-edit.png' });
+
+    // 检查当前 URL 是编辑页
+    const currentUrl = page.url();
+    console.log('编辑页 URL:', currentUrl);
+    expect(currentUrl).toMatch(/\/patents\/[a-f0-9-]+\/edit$/);
+
+    // 等待页面加载 - 检查专利名称输入框
+    const titleInput = page.locator('input[placeholder="请输入专利名称"]');
+    await expect(titleInput).toBeVisible({ timeout: 10000 });
+    console.log('专利编辑页面表单可见');
+
+    // 检查取消按钮是否存在
+    const cancelButton = page.locator('.action-buttons .el-button').first();
+    await expect(cancelButton).toBeVisible();
+    console.log('专利编辑页面取消按钮可见');
+
+    // 点击取消按钮返回
+    await cancelButton.click();
+    await page.waitForTimeout(2000);
+
+    // 检查是否返回列表页
+    const listUrl = page.url();
+    console.log('返回列表 URL:', listUrl);
+    expect(listUrl).toMatch(/\/patents$/);
+    console.log('专利编辑取消功能正常');
+  });
+
+  test('软著详情页编辑功能', async ({ page }) => {
+    await page.goto('/copyrights');
+    await page.waitForTimeout(3000);
+    await page.waitForSelector('.el-table__row');
+
+    // 点击第一个软著的编辑按钮
+    const firstRow = page.locator('.el-table__row').first();
+    const editButton = firstRow.locator('button').nth(2); // 详情 (0), AI 生成 (1), 编辑 (2)
+    await editButton.click();
+    await page.waitForTimeout(5000);
+
+    // 截图调试
+    await page.screenshot({ path: 'test-results/copyright-edit.png' });
+
+    // 检查当前 URL 是编辑页
+    const currentUrl = page.url();
+    console.log('编辑页 URL:', currentUrl);
+    expect(currentUrl).toMatch(/\/copyrights\/[a-f0-9-]+\/edit$/);
+
+    // 等待页面加载 - 检查软件名称输入框
+    const nameInput = page.locator('input[placeholder="请输入软件名称"]');
+    await expect(nameInput).toBeVisible({ timeout: 10000 });
+    console.log('软著编辑页面表单可见');
+
+    // 检查取消按钮是否存在
+    const cancelButton = page.locator('.action-buttons .el-button').first();
+    await expect(cancelButton).toBeVisible();
+    console.log('软著编辑页面取消按钮可见');
+
+    // 点击取消按钮返回
+    await cancelButton.click();
+    await page.waitForTimeout(2000);
+
+    // 检查是否返回列表页
+    const listUrl = page.url();
+    console.log('返回列表 URL:', listUrl);
+    expect(listUrl).toMatch(/\/copyrights$/);
+    console.log('软著编辑取消功能正常');
+  });
 });
