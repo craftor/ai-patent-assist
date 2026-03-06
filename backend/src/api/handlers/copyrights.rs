@@ -61,6 +61,23 @@ pub struct CopyrightResponse {
     pub duration_ms: i32,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct UpdateCopyrightRequest {
+    pub software_name: Option<String>,
+    pub software_version: Option<String>,
+    pub developer: Option<String>,
+    pub completion_date: Option<String>,
+    pub software_category: Option<String>,
+    pub operating_system: Option<String>,
+    pub programming_language: Option<String>,
+    pub line_count: Option<i32>,
+    pub source_code_path: Option<String>,
+    pub user_manual_path: Option<String>,
+    pub description: Option<String>,
+    pub function_features: Option<String>,
+    pub technical_features: Option<String>,
+}
+
 /// 获取软著列表
 pub async fn list_copyrights(
     State(state): State<AppState>,
@@ -189,5 +206,83 @@ pub async fn generate_copyright(
             duration_ms: result.duration_ms,
         })),
         Err(e) => Json(ApiResponse::error(format!("生成失败：{}", e))),
+    }
+}
+
+/// 更新软著
+pub async fn update_copyright(
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+    Json(payload): Json<UpdateCopyrightRequest>,
+) -> Result<Json<ApiResponse<CopyrightDocument>>, StatusCode> {
+    let updated = sqlx::query_as::<_, CopyrightDocument>(
+        r#"UPDATE copyright_documents SET
+            software_name = COALESCE($2, software_name),
+            software_version = COALESCE($3, software_version),
+            developer = COALESCE($4, developer),
+            completion_date = COALESCE($5, completion_date),
+            software_category = COALESCE($6, software_category),
+            operating_system = COALESCE($7, operating_system),
+            programming_language = COALESCE($8, programming_language),
+            line_count = COALESCE($9, line_count),
+            source_code_path = COALESCE($10, source_code_path),
+            user_manual_path = COALESCE($11, user_manual_path),
+            description = COALESCE($12, description),
+            function_features = COALESCE($13, function_features),
+            technical_features = COALESCE($14, technical_features),
+            version = version + 1,
+            updated_at = NOW()
+        WHERE id = $1
+        RETURNING
+            id,
+            project_id,
+            software_name,
+            software_version,
+            developer,
+            completion_date,
+            publication_date,
+            software_category,
+            operating_system,
+            programming_language,
+            line_count,
+            source_code_path,
+            user_manual_path,
+            description,
+            function_features,
+            technical_features,
+            ai_prompt,
+            ai_model,
+            version,
+            status::text as status,
+            review_comments,
+            reviewed_by,
+            reviewed_at,
+            created_at,
+            updated_at"#
+    )
+    .bind(id)
+    .bind(payload.software_name)
+    .bind(payload.software_version)
+    .bind(payload.developer)
+    .bind(payload.completion_date)
+    .bind(payload.software_category)
+    .bind(payload.operating_system)
+    .bind(payload.programming_language)
+    .bind(payload.line_count)
+    .bind(payload.source_code_path)
+    .bind(payload.user_manual_path)
+    .bind(payload.description)
+    .bind(payload.function_features)
+    .bind(payload.technical_features)
+    .fetch_optional(&*state.pool)
+    .await;
+
+    match updated {
+        Ok(Some(copyright)) => Ok(Json(ApiResponse::success(copyright))),
+        Ok(None) => Err(StatusCode::NOT_FOUND),
+        Err(e) => {
+            tracing::error!("Failed to update copyright: {}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
     }
 }

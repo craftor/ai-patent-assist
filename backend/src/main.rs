@@ -5,7 +5,7 @@ mod db;
 mod models;
 mod services;
 
-use axum::{routing::{get, post}, Router};
+use axum::{routing::{get, post, put, delete}, Router};
 use tokio::net::TcpListener;
 use std::sync::Arc;
 
@@ -65,23 +65,25 @@ fn build_app(state: AppState) -> Router {
         // 用户管理
         .route("/api/users", get(api::handlers::list_users))
         .route("/api/users/:id", get(api::handlers::get_user))
-        .route("/api/users/:id", axum::routing::put(api::handlers::update_user))
-        .route("/api/users/:id", axum::routing::delete(api::handlers::delete_user))
+        .route("/api/users/:id", put(api::handlers::update_user))
+        .route("/api/users/:id", delete(api::handlers::delete_user))
         // 项目管理
         .route("/api/projects", get(api::handlers::list_projects))
         .route("/api/projects", post(api::handlers::create_project))
         .route("/api/projects/:id", get(api::handlers::get_project))
-        .route("/api/projects/:id", axum::routing::put(api::handlers::update_project))
-        .route("/api/projects/:id", axum::routing::delete(api::handlers::delete_project))
+        .route("/api/projects/:id", put(api::handlers::update_project))
+        .route("/api/projects/:id", delete(api::handlers::delete_project))
         .route("/api/projects/:id/attachments", post(api::handlers::upload_attachment))
-        .route("/api/projects/:id/attachments/:file_id", axum::routing::delete(api::handlers::delete_attachment))
+        .route("/api/projects/:id/attachments/:file_id", delete(api::handlers::delete_attachment))
         // 专利管理
         .route("/api/patents", get(api::handlers::list_patents))
         .route("/api/patents/:id", get(api::handlers::get_patent))
+        .route("/api/patents/:id", put(api::handlers::update_patent))
         .route("/api/patents/generate", post(api::handlers::generate_patent))
         // 软著管理
         .route("/api/copyrights", get(api::handlers::list_copyrights))
         .route("/api/copyrights/:id", get(api::handlers::get_copyright))
+        .route("/api/copyrights/:id", put(api::handlers::update_copyright))
         .route("/api/copyrights/generate", post(api::handlers::generate_copyright));
 
     api_routes.with_state(state)
@@ -93,3 +95,4 @@ pub struct AppState {
     pub config: Arc<Config>,
     pub ai_generator: Arc<AiGenerator>,
 }
+

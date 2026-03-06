@@ -36,6 +36,7 @@ pub use crate::api::handlers::patents::{
     list_patents,
     get_patent,
     generate_patent,
+    update_patent,
 };
 
 // Copyright handlers
@@ -43,6 +44,7 @@ pub use crate::api::handlers::copyrights::{
     list_copyrights,
     get_copyright,
     generate_copyright,
+    update_copyright,
 };
 
 // Template handlers
@@ -75,3 +77,4 @@ pub use crate::api::handlers::logs::{
     list_audit_logs,
     list_ai_usage,
 };
+

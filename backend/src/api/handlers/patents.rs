@@ -55,6 +55,19 @@ pub struct PatentResponse {
     pub duration_ms: i32,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct UpdatePatentRequest {
+    pub title: Option<String>,
+    pub technical_field: Option<String>,
+    pub background_art: Option<String>,
+    pub invention_content: Option<String>,
+    pub claims: Option<serde_json::Value>,
+    pub abstract_text: Option<String>,
+    pub drawings_description: Option<String>,
+    pub embodiment: Option<String>,
+    pub change_summary: Option<String>,
+}
+
 /// 获取专利列表
 pub async fn list_patents(
     State(state): State<AppState>,
@@ -172,5 +185,69 @@ pub async fn generate_patent(
             duration_ms: result.duration_ms,
         })),
         Err(e) => Json(ApiResponse::error(format!("生成失败：{}", e))),
+    }
+}
+
+/// 更新专利
+pub async fn update_patent(
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+    Json(payload): Json<UpdatePatentRequest>,
+) -> Result<Json<ApiResponse<PatentDocument>>, StatusCode> {
+    // 更新字段
+    let updated = sqlx::query_as::<_, PatentDocument>(
+        r#"UPDATE patent_documents SET
+            title = COALESCE($2, title),
+            technical_field = COALESCE($3, technical_field),
+            background_art = COALESCE($4, background_art),
+            invention_content = COALESCE($5, invention_content),
+            claims = COALESCE($6, claims),
+            abstract_text = COALESCE($7, abstract_text),
+            drawings_description = COALESCE($8, drawings_description),
+            embodiment = COALESCE($9, embodiment),
+            version = version + 1,
+            updated_at = NOW()
+        WHERE id = $1
+        RETURNING
+            id,
+            project_id,
+            patent_type::text as patent_type,
+            title,
+            technical_field,
+            background_art,
+            invention_content,
+            claims,
+            abstract_text,
+            drawings_description,
+            embodiment,
+            ai_prompt,
+            ai_model,
+            version,
+            status::text as status,
+            review_comments,
+            reviewed_by,
+            reviewed_at,
+            created_at,
+            updated_at"#
+    )
+    .bind(id)
+    .bind(payload.title)
+    .bind(payload.technical_field)
+    .bind(payload.background_art)
+    .bind(payload.invention_content)
+    .bind(payload.claims.clone())
+    .bind(payload.abstract_text)
+    .bind(payload.drawings_description)
+    .bind(payload.embodiment)
+    .fetch_optional(&*state.pool)
+    .await;
+
+    match updated {
+        Ok(Some(patent)) => Ok(Json(ApiResponse::success(patent))),
+        Ok(None) => Err(StatusCode::NOT_FOUND),
+        Err(e) => {
+            tracing::error!("Failed to update patent: {}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
     }
 }

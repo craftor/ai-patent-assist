@@ -18,8 +18,8 @@ pub use projects::{
     upload_attachment,
     delete_attachment,
 };
-pub use patents::{list_patents, get_patent, generate_patent};
-pub use copyrights::{list_copyrights, get_copyright, generate_copyright};
+pub use patents::{list_patents, get_patent, generate_patent, update_patent};
+pub use copyrights::{list_copyrights, get_copyright, generate_copyright, update_copyright};
 pub use templates::{list_templates, create_template, update_template, delete_template};
 pub use api_keys::{list_keys, create_key, revoke_key};
 pub use ai::{list_models, add_model, update_model, delete_model, get_default_model, set_default_model};
@@ -59,3 +59,4 @@ impl<T: Serialize> ApiResponse<T> {
 pub async fn health_check() -> StatusCode {
     StatusCode::OK
 }
+
