@@ -205,6 +205,7 @@ const route = useRoute()
 const loading = ref(false)
 const saving = ref(false)
 const changeSummary = ref('')
+const formRef = ref<FormInstance>()
 
 const copyright = ref<CopyrightDocument>({
   id: '',
@@ -252,10 +253,9 @@ const fetchCopyrightDetail = async () => {
 
 // 保存修改
 const handleSave = async () => {
-  const formRef = formRef as any
-  if (!formRef) return
+  if (!formRef.value) return
 
-  await formRef.validate(async (valid: boolean) => {
+  await formRef.value.validate(async (valid: boolean) => {
     if (!valid) return
 
     saving.value = true
@@ -291,8 +291,6 @@ const handleSave = async () => {
 const handleBack = () => {
   router.back()
 }
-
-const formRef = ref<FormInstance>()
 
 onMounted(() => {
   fetchCopyrightDetail()

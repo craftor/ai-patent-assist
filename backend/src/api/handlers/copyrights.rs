@@ -220,7 +220,7 @@ pub async fn update_copyright(
             software_name = COALESCE($2, software_name),
             software_version = COALESCE($3, software_version),
             developer = COALESCE($4, developer),
-            completion_date = COALESCE($5, completion_date),
+            completion_date = CASE WHEN $5 IS NOT NULL THEN $5::date ELSE completion_date END,
             software_category = COALESCE($6, software_category),
             operating_system = COALESCE($7, operating_system),
             programming_language = COALESCE($8, programming_language),
