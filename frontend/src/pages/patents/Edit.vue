@@ -185,7 +185,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
@@ -208,6 +208,7 @@ const route = useRoute()
 const loading = ref(false)
 const saving = ref(false)
 const changeSummary = ref('')
+const formRef = ref<FormInstance>()
 
 const patent = ref<PatentDocument>({
   id: '',
@@ -277,10 +278,9 @@ const fetchPatentDetail = async () => {
 
 // 保存修改
 const handleSave = async () => {
-  const formRef = formRef as any
-  if (!formRef) return
+  if (!formRef.value) return
 
-  await formRef.validate(async (valid: boolean) => {
+  await formRef.value.validate(async (valid: boolean) => {
     if (!valid) return
 
     saving.value = true
@@ -320,8 +320,6 @@ const handleSave = async () => {
 const handleBack = () => {
   router.back()
 }
-
-const formRef = ref<FormInstance>()
 
 onMounted(() => {
   fetchPatentDetail()
