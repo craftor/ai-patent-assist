@@ -84,7 +84,13 @@ fn build_app(state: AppState) -> Router {
         .route("/api/copyrights", get(api::handlers::list_copyrights))
         .route("/api/copyrights/:id", get(api::handlers::get_copyright))
         .route("/api/copyrights/:id", put(api::handlers::update_copyright))
-        .route("/api/copyrights/generate", post(api::handlers::generate_copyright));
+        .route("/api/copyrights/generate", post(api::handlers::generate_copyright))
+        // 模板管理
+        .route("/api/templates", get(api::handlers::list_templates))
+        .route("/api/templates", post(api::handlers::create_template))
+        .route("/api/templates/:id", get(api::handlers::get_template))
+        .route("/api/templates/:id", put(api::handlers::update_template))
+        .route("/api/templates/:id", delete(api::handlers::delete_template));
 
     api_routes.with_state(state)
 }
