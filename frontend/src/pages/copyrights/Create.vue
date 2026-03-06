@@ -15,7 +15,50 @@
           label-width="140px"
           size="large"
         >
-          <!-- 第一步：软件基本信息 -->
+          <!-- 第一步：选择模板 -->
+          <div class="form-section">
+            <h3 class="section-title">
+              <el-icon><Document /></el-icon>
+              选择模板
+            </h3>
+
+            <el-form-item label="文档模板">
+              <el-select
+                v-model="selectedTemplateId"
+                placeholder="选择模板（可选），可快速填充表单"
+                style="width: 100%"
+                @change="handleTemplateChange"
+              >
+                <el-option
+                  v-for="template in templates"
+                  :key="template.id"
+                  :label="template.name"
+                  :value="template.id"
+                >
+                  <div class="template-option">
+                    <span>{{ template.name }}</span>
+                    <el-tag v-if="template.is_system" type="warning" size="small">系统模板</el-tag>
+                  </div>
+                </el-option>
+              </el-select>
+            </el-form-item>
+
+            <el-alert
+              v-if="selectedTemplate"
+              title="已选择模板"
+              type="info"
+              show-icon
+              :closable="false"
+              style="margin-top: 10px"
+            >
+              <div class="template-info">
+                <p><strong>模板内容预览：</strong></p>
+                <div class="template-preview">{{ selectedTemplate.content_template }}</div>
+              </div>
+            </el-alert>
+          </div>
+
+          <!-- 软件基本信息 -->
           <div class="form-section">
             <h3 class="section-title">
               <el-icon><Monitor /></el-icon>
@@ -93,7 +136,7 @@
             </el-form-item>
           </div>
 
-          <!-- 第二步：运行环境 -->
+          <!-- 运行环境 -->
           <div class="form-section">
             <h3 class="section-title">
               <el-icon><Setting /></el-icon>
@@ -142,7 +185,7 @@
             </el-form-item>
           </div>
 
-          <!-- 第三步：功能说明 -->
+          <!-- 功能说明 -->
           <div class="form-section">
             <h3 class="section-title">
               <el-icon><List /></el-icon>
@@ -201,7 +244,7 @@
             </el-form-item>
           </div>
 
-          <!-- 第四步：源代码说明 -->
+          <!-- 源代码说明 -->
           <div class="form-section">
             <h3 class="section-title">
               <el-icon><Document /></el-icon>
@@ -248,7 +291,7 @@
             </el-form-item>
           </div>
 
-          <!-- 第五步：用户手册说明（可选） -->
+          <!-- 用户手册说明（可选） -->
           <div class="form-section">
             <h3 class="section-title">
               <el-icon><User /></el-icon>
@@ -347,7 +390,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
@@ -360,6 +403,7 @@ import {
   MagicStick,
 } from '@element-plus/icons-vue'
 import { projectApi, type Project } from '@/api/project'
+import { templateApi, type Template } from '@/api/template'
 
 interface CreateCopyrightForm {
   project_id: string
@@ -386,6 +430,8 @@ const route = useRoute()
 
 const formRef = ref<FormInstance>()
 const projects = ref<Project[]>([])
+const templates = ref<Template[]>([])
+const selectedTemplateId = ref<string>('')
 const generating = ref(false)
 const showResultDialog = ref(false)
 
@@ -439,6 +485,11 @@ const generatedData = ref({
   usage_instructions: '',
 })
 
+// 选中的模板
+const selectedTemplate = computed(() => {
+  return templates.value.find(t => t.id === selectedTemplateId.value)
+})
+
 // 获取项目列表
 const fetchProjects = async () => {
   try {
@@ -449,6 +500,73 @@ const fetchProjects = async () => {
   } catch (error) {
     console.error('Failed to fetch projects:', error)
   }
+}
+
+// 获取模板列表
+const fetchTemplates = async () => {
+  try {
+    const response = await templateApi.list()
+    if (response.data) {
+      templates.value = response.data.filter(t => t.template_type === 'copyright')
+    }
+  } catch (error) {
+    console.error('Failed to fetch templates:', error)
+  }
+}
+
+// 处理模板选择 - 填充表单
+const handleTemplateChange = () => {
+  const template = selectedTemplate.value
+  if (!template) return
+
+  // 解析模板内容，提取占位符对应的字段
+  const content = template.content_template
+
+  // 尝试从模板中提取字段值
+  const fieldMap: Record<string, string> = {
+    software_name: extractTemplateField(content, '软件名称'),
+    software_version: extractTemplateField(content, '版本号'),
+    developer: extractTemplateField(content, '开发者'),
+    function_description: extractTemplateField(content, '软件功能说明'),
+    technical_features: extractTemplateField(content, '软件技术特点'),
+    operating_system: extractTemplateField(content, '运行环境'),
+    source_code_description: extractTemplateField(content, '源代码说明'),
+  }
+
+  // 填充表单
+  if (fieldMap.software_name) form.software_name = fieldMap.software_name
+  if (fieldMap.software_version) form.software_version = fieldMap.software_version
+  if (fieldMap.developer) form.developer = fieldMap.developer
+  if (fieldMap.function_description) form.function_features = fieldMap.function_description
+  if (fieldMap.technical_features) form.technical_features = fieldMap.technical_features
+  if (fieldMap.operating_system) form.operating_system = fieldMap.operating_system
+
+  ElMessage.success('已根据模板填充表单，请继续完善内容')
+}
+
+// 从模板内容中提取字段值
+const extractTemplateField = (content: string, fieldName: string): string => {
+  // 支持多种格式匹配
+  // 格式 1: - 字段名：{value}
+  const regex1 = new RegExp(`-\\s*${fieldName}[:：]\\s*\\{[^}]*\\}`, 'i')
+  // 格式 2: ## 字段名\n{value}
+  const regex2 = new RegExp(`##\\s*${fieldName}\\s*\\n([\\s\\S]*?)(?=##|$)`, 'i')
+
+  const match1 = content.match(regex1)
+  if (match1) {
+    // 如果是占位符，返回空字符串
+    return ''
+  }
+
+  const match2 = content.match(regex2)
+  if (match2 && match2[1]) {
+    const value = match2[1].trim()
+    // 如果内容是占位符格式，返回空
+    if (value.match(/^\{.*\}$/)) return ''
+    return value
+  }
+
+  return ''
 }
 
 // 返回
@@ -513,6 +631,7 @@ const handleViewDetail = () => {
 
 onMounted(() => {
   fetchProjects()
+  fetchTemplates()
 })
 </script>
 
@@ -550,6 +669,29 @@ onMounted(() => {
   font-size: 16px;
   color: var(--el-text-color-primary);
   margin-bottom: 20px;
+}
+
+.template-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.template-info {
+  margin-top: 10px;
+}
+
+.template-preview {
+  margin-top: 8px;
+  padding: 12px;
+  background: var(--el-fill-color);
+  border-radius: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  font-family: monospace;
+  font-size: 13px;
+  white-space: pre-wrap;
+  line-height: 1.6;
 }
 
 .form-actions {

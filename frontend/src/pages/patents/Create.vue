@@ -15,7 +15,50 @@
           label-width="120px"
           size="large"
         >
-          <!-- 第一步：基本信息 -->
+          <!-- 第一步：选择模板 -->
+          <div class="form-section">
+            <h3 class="section-title">
+              <el-icon><Document /></el-icon>
+              选择模板
+            </h3>
+
+            <el-form-item label="文档模板">
+              <el-select
+                v-model="selectedTemplateId"
+                placeholder="选择模板（可选），可快速填充表单"
+                style="width: 100%"
+                @change="handleTemplateChange"
+              >
+                <el-option
+                  v-for="template in templates"
+                  :key="template.id"
+                  :label="template.name"
+                  :value="template.id"
+                >
+                  <div class="template-option">
+                    <span>{{ template.name }}</span>
+                    <el-tag v-if="template.is_system" type="warning" size="small">系统模板</el-tag>
+                  </div>
+                </el-option>
+              </el-select>
+            </el-form-item>
+
+            <el-alert
+              v-if="selectedTemplate"
+              title="已选择模板"
+              type="info"
+              show-icon
+              :closable="false"
+              style="margin-top: 10px"
+            >
+              <div class="template-info">
+                <p><strong>模板内容预览：</strong></p>
+                <div class="template-preview">{{ selectedTemplate.content_template }}</div>
+              </div>
+            </el-alert>
+          </div>
+
+          <!-- 基本信息 -->
           <div class="form-section">
             <h3 class="section-title">
               <el-icon><Document /></el-icon>
@@ -72,7 +115,7 @@
             </el-form-item>
           </div>
 
-          <!-- 第二步：背景技术 -->
+          <!-- 背景技术 -->
           <div class="form-section">
             <h3 class="section-title">
               <el-icon><Clock /></el-icon>
@@ -94,7 +137,7 @@
             </el-form-item>
           </div>
 
-          <!-- 第三步：发明内容 -->
+          <!-- 发明内容 -->
           <div class="form-section">
             <h3 class="section-title">
               <el-icon><Aim /></el-icon>
@@ -144,7 +187,7 @@
             </el-form-item>
           </div>
 
-          <!-- 第四步：权利要求（可选） -->
+          <!-- 权利要求（可选） -->
           <div class="form-section">
             <h3 class="section-title">
               <el-icon><List /></el-icon>
@@ -228,7 +271,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
@@ -244,6 +287,7 @@ import {
   MagicStick,
 } from '@element-plus/icons-vue'
 import { projectApi, type Project } from '@/api/project'
+import { templateApi, type Template } from '@/api/template'
 
 // 专利类型
 type PatentType = 'invention' | 'utility' | 'design'
@@ -265,6 +309,8 @@ const route = useRoute()
 
 const formRef = ref<FormInstance>()
 const projects = ref<Project[]>([])
+const templates = ref<Template[]>([])
+const selectedTemplateId = ref<string>('')
 const generating = ref(false)
 const showResultDialog = ref(false)
 
@@ -310,6 +356,11 @@ const generatedData = ref({
   abstract_text: '',
 })
 
+// 选中的模板
+const selectedTemplate = computed(() => {
+  return templates.value.find(t => t.id === selectedTemplateId.value)
+})
+
 // 获取项目列表
 const fetchProjects = async () => {
   try {
@@ -320,6 +371,58 @@ const fetchProjects = async () => {
   } catch (error) {
     console.error('Failed to fetch projects:', error)
   }
+}
+
+// 获取模板列表
+const fetchTemplates = async () => {
+  try {
+    const response = await templateApi.list()
+    if (response.data) {
+      templates.value = response.data.filter(t =>
+        t.template_type === 'patent_invention' ||
+        t.template_type === 'patent_utility' ||
+        t.template_type === 'patent_design'
+      )
+    }
+  } catch (error) {
+    console.error('Failed to fetch templates:', error)
+  }
+}
+
+// 处理模板选择 - 填充表单
+const handleTemplateChange = () => {
+  const template = selectedTemplate.value
+  if (!template) return
+
+  // 解析模板内容，提取占位符对应的字段
+  const content = template.content_template
+
+  // 尝试从模板中提取字段值
+  const fieldMap: Record<string, string> = {
+    technical_field: extractTemplateField(content, '技术领域'),
+    background_art: extractTemplateField(content, '背景技术'),
+    invention_content: extractTemplateField(content, '发明内容'),
+    embodiment: extractTemplateField(content, '具体实施方式'),
+    claims: extractTemplateField(content, '权利要求书'),
+    abstract: extractTemplateField(content, '摘要'),
+  }
+
+  // 填充表单
+  if (fieldMap.technical_field) form.technical_field = fieldMap.technical_field
+  if (fieldMap.background_art) form.background_art = fieldMap.background_art
+  if (fieldMap.invention_content) form.invention_description = fieldMap.invention_content
+
+  ElMessage.success('已根据模板填充表单，请继续完善内容')
+}
+
+// 从模板内容中提取字段值
+const extractTemplateField = (content: string, fieldName: string): string => {
+  const regex = new RegExp(`##\\s*${fieldName}\\s*\\n([\\s\\S]*?)(?=##|$)`, 'i')
+  const match = content.match(regex)
+  if (match && match[1]) {
+    return match[1].trim().replace(/^\{.*\}$/, '') // 如果有占位符则返回空
+  }
+  return ''
 }
 
 // 添加实施方式
@@ -397,6 +500,7 @@ const handleViewDetail = () => {
 
 onMounted(() => {
   fetchProjects()
+  fetchTemplates()
 })
 </script>
 
@@ -434,6 +538,29 @@ onMounted(() => {
   font-size: 16px;
   color: var(--el-text-color-primary);
   margin-bottom: 20px;
+}
+
+.template-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.template-info {
+  margin-top: 10px;
+}
+
+.template-preview {
+  margin-top: 8px;
+  padding: 12px;
+  background: var(--el-fill-color);
+  border-radius: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  font-family: monospace;
+  font-size: 13px;
+  white-space: pre-wrap;
+  line-height: 1.6;
 }
 
 .embodiment-item {
