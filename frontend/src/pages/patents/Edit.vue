@@ -368,12 +368,19 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  width: 100%;
 }
 
 .claim-item {
   display: flex;
   align-items: flex-start;
   gap: 10px;
+  width: 100%;
+}
+
+.claim-item :deep(.el-input) {
+  flex: 1;
+  width: auto;
 }
 
 .claim-item :deep(.el-input__wrapper) {
