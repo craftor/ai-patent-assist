@@ -54,8 +54,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 fn build_app(state: AppState) -> Router {
     let api_routes = Router::new()
-        // 健康检查
+        // 健康检查（使用 /api/health 路径以匹配前端 baseURL）
         .route("/health", get(|| async { "OK" }))
+        .route("/api/health", get(|| async { "OK" }))
         // 认证相关
         .route("/api/auth/login", post(api::handlers::login))
         .route("/api/auth/register", post(api::handlers::register))
@@ -67,6 +68,7 @@ fn build_app(state: AppState) -> Router {
         .route("/api/users/:id", get(api::handlers::get_user))
         .route("/api/users/:id", put(api::handlers::update_user))
         .route("/api/users/:id", delete(api::handlers::delete_user))
+        .route("/api/users/:id/password", put(api::handlers::change_password))
         // 项目管理
         .route("/api/projects", get(api::handlers::list_projects))
         .route("/api/projects", post(api::handlers::create_project))
@@ -90,7 +92,14 @@ fn build_app(state: AppState) -> Router {
         .route("/api/templates", post(api::handlers::create_template))
         .route("/api/templates/:id", get(api::handlers::get_template))
         .route("/api/templates/:id", put(api::handlers::update_template))
-        .route("/api/templates/:id", delete(api::handlers::delete_template));
+        .route("/api/templates/:id", delete(api::handlers::delete_template))
+        // AI 模型管理
+        .route("/api/ai/models", get(api::handlers::list_models))
+        .route("/api/ai/models", post(api::handlers::add_model))
+        .route("/api/ai/models/:id", put(api::handlers::update_model))
+        .route("/api/ai/models/:id", delete(api::handlers::delete_model))
+        .route("/api/ai/models/:id/set-default", post(api::handlers::set_default_model))
+        .route("/api/ai/models/default", get(api::handlers::get_default_model));
 
     api_routes.with_state(state)
 }
