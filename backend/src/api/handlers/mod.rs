@@ -24,7 +24,7 @@ pub use templates::{list_templates, create_template, update_template, delete_tem
 pub use api_keys::{list_keys, create_key, revoke_key};
 pub use ai::{list_models, add_model, update_model, delete_model, get_default_model, set_default_model};
 pub use logs::{list_audit_logs, list_ai_usage};
-pub use users::{list_users, get_user, update_user, delete_user};
+pub use users::{list_users, get_user, update_user, delete_user, change_password};
 
 use axum::http::StatusCode;
 use serde::{Deserialize, Serialize};

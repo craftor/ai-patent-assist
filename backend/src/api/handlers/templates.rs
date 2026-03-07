@@ -208,6 +208,33 @@ pub async fn delete_template(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
 ) -> Result<StatusCode, StatusCode> {
+    // 先检查是否是系统模板
+    let check_result = sqlx::query_scalar::<_, bool>(
+        "SELECT is_system FROM document_templates WHERE id = $1"
+    )
+    .bind(id)
+    .fetch_optional(&*state.pool)
+    .await;
+
+    match check_result {
+        Ok(Some(true)) => {
+            // 系统模板不允许删除
+            return Err(StatusCode::FORBIDDEN);
+        }
+        Ok(Some(false)) => {
+            // 自定义模板，可以删除
+        }
+        Ok(None) => {
+            // 模板不存在
+            return Err(StatusCode::NOT_FOUND);
+        }
+        Err(e) => {
+            tracing::error!("Failed to check template: {}", e);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    // 执行删除
     let result = sqlx::query(
         "DELETE FROM document_templates WHERE id = $1"
     )

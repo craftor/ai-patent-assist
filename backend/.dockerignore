@@ -1,0 +1,10 @@
+target
+**/target
+**/*.rs.bk
+.env
+.env.local
+**/.git
+**/.gitignore
+**/*.md
+**/test
+**/tests
