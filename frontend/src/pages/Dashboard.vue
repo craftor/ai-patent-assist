@@ -98,8 +98,12 @@
             <el-button type="success" @click="$router.push('/copyrights/create')">
               新建软著文档
             </el-button>
-            <el-button @click="$router.push('/projects')">项目管理</el-button>
-            <el-button @click="$router.push('/templates')">模板管理</el-button>
+            <el-button type="warning" @click="$router.push('/projects')">
+              项目管理
+            </el-button>
+            <el-button type="info" @click="$router.push('/templates')">
+              模板管理
+            </el-button>
           </div>
         </el-card>
       </el-col>
