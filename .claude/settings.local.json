@@ -36,7 +36,12 @@
       "Bash(npx:*)",
       "Bash(npm init:*)",
       "Bash(npx playwright:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(/home/craftor/rust/ai-patent-assist/backend/Dockerfile:*)",
+      "Bash(/home/craftor/rust/ai-patent-assist/docker-compose.yml:*)",
+      "Bash(/home/craftor/rust/ai-patent-assist/backend/.dockerignore:*)",
+      "Bash(/home/craftor/rust/ai-patent-assist/frontend/.dockerignore:*)",
+      "Bash(timeout 10 docker run:*)"
     ]
   }
 }
