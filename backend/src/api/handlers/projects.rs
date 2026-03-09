@@ -159,26 +159,26 @@ pub async fn update_project(
     let name = req.name.unwrap_or(existing.name);
     let description = req.description.or(existing.description);
     let status = req.status.unwrap_or(existing.status);
-    let completed_at = if status == "completed" {
-        "NOW()"
+
+    // 处理 completed_at - 使用参数化查询而非字符串拼接
+    let completed_at_value = if status == "completed" {
+        Some(chrono::Utc::now())
     } else {
-        "NULL"
+        None
     };
 
     let project = sqlx::query_as::<_, Project>(
-        &format!(
-            r#"
-            UPDATE projects
-            SET name = $1, description = $2, status = $3, completed_at = {}, updated_at = NOW()
-            WHERE id = $4
-            RETURNING *
-            "#,
-            completed_at
-        )
+        r#"
+        UPDATE projects
+        SET name = $1, description = $2, status = $3, completed_at = $4, updated_at = NOW()
+        WHERE id = $5
+        RETURNING *
+        "#
     )
     .bind(&name)
     .bind(&description)
     .bind(&status)
+    .bind(&completed_at_value)
     .bind(&id)
     .fetch_one(&*state.pool)
     .await;

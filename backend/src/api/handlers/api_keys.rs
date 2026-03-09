@@ -2,10 +2,11 @@ use axum::{extract::{State, Path}, http::StatusCode, Json};
 use uuid::Uuid;
 
 use crate::api::handlers::ApiResponse;
+use crate::AppState;
 
 /// 列出 API Keys
 pub async fn list_keys(
-    State(state): State<crate::AppState>,
+    State(_state): State<AppState>,
 ) -> Result<Json<ApiResponse<Vec<ApiKeyResponse>>>, StatusCode> {
     // TODO: 实现
     Err(StatusCode::NOT_IMPLEMENTED)
@@ -13,7 +14,7 @@ pub async fn list_keys(
 
 /// 创建 API Key
 pub async fn create_key(
-    State(state): State<crate::AppState>,
+    State(_state): State<AppState>,
 ) -> Result<StatusCode, StatusCode> {
     // TODO: 实现
     Err(StatusCode::NOT_IMPLEMENTED)
@@ -21,8 +22,8 @@ pub async fn create_key(
 
 /// 撤销 API Key
 pub async fn revoke_key(
-    State(state): State<crate::AppState>,
-    Path(id): Path<Uuid>,
+    State(_state): State<AppState>,
+    Path(_id): Path<Uuid>,
 ) -> Result<StatusCode, StatusCode> {
     // TODO: 实现
     Err(StatusCode::NOT_IMPLEMENTED)

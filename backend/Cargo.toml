@@ -38,3 +38,10 @@ reqwest = { version = "0.11", features = ["json"] }
 
 # 密码哈希
 argon2 = "0.5"
+
+# JWT
+jsonwebtoken = "9"
+
+# Extra axum utilities
+axum-extra = { version = "0.9", features = ["typed-header"] }
+headers = "0.4"

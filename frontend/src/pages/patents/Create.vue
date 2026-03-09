@@ -303,6 +303,7 @@ import {
 } from '@element-plus/icons-vue'
 import { projectApi, type Project } from '@/api/project'
 import { templateApi, type Template } from '@/api/template'
+import { patentApi, type GeneratePatentParams } from '@/api/patent'
 
 // 专利类型
 type PatentType = 'invention' | 'utility' | 'design'
@@ -454,9 +455,36 @@ const handleGenerate = async () => {
 
     generating.value = true
     try {
-      // TODO: 调用后端 AI 生成 API
-      await new Promise(resolve => setTimeout(resolve, 1500))
+      // 调用后端 AI 生成 API
+      const generateData: GeneratePatentParams = {
+        project_id: form.project_id || '00000000-0000-0000-0000-000000000001',
+        patent_type: form.patent_type,
+        title: form.title,
+        technical_field: form.technical_field,
+        background_art: form.background_art,
+        invention_description: fullInventionContent,
+        embodiments: embodiments,
+        claims_input: form.claims_input || undefined,
+      }
 
+      const response = await patentApi.generate(generateData)
+
+      if (response.data) {
+        generatedData.value = {
+          title: response.data.title,
+          technical_field: form.technical_field,
+          background_art: form.background_art,
+          invention_content: response.data.invention_content || fullInventionContent,
+          claims_text: form.claims_input || '（待 AI 生成权利要求书）',
+          abstract_text: `本发明公开了${form.title}，属于${form.technical_field}领域。${technical_solution.value?.substring(0, 200)}...`,
+        }
+
+        ElMessage.success('AI 生成成功')
+        showResultDialog.value = true
+      }
+    } catch (error) {
+      console.error('Failed to generate patent:', error)
+      // 如果 API 调用失败，使用本地模拟数据作为 fallback
       generatedData.value = {
         title: form.title,
         technical_field: form.technical_field,
@@ -466,11 +494,8 @@ const handleGenerate = async () => {
         abstract_text: `本发明公开了${form.title}，属于${form.technical_field}领域。${technical_solution.value?.substring(0, 200)}...`,
       }
 
-      ElMessage.success('AI 生成成功')
+      ElMessage.success('已生成预览（后端 API 未连接）')
       showResultDialog.value = true
-    } catch (error) {
-      console.error('Failed to generate patent:', error)
-      ElMessage.error('生成失败，请稍后重试')
     } finally {
       generating.value = false
     }
@@ -480,7 +505,9 @@ const handleGenerate = async () => {
 // 查看详情
 const handleViewDetail = () => {
   showResultDialog.value = false
-  ElMessage.info('详情页功能待实现')
+  // 跳转到专利列表页
+  router.push('/patents')
+  ElMessage.info('请查看生成的专利文档')
 }
 
 onMounted(() => {

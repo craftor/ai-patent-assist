@@ -10,6 +10,7 @@
 - **文档版本管理**: 完整的版本控制和历史记录
 - **审核流程**: 支持文档审核和审批流程
 - **模板管理**: 可自定义文档模板
+- **JWT 认证**: 完整的用户认证和授权系统
 - **Docker 一键部署**: 支持 Docker Compose 和 Kubernetes 部署
 
 ## 测试账号
@@ -33,6 +34,7 @@
 - Redis 缓存
 - SQLx 异步数据库访问
 - JWT 认证
+- Argon2 密码哈希
 
 ### 部署
 - Docker + Docker Compose
@@ -189,6 +191,10 @@ ai-patent-assist/
 ```bash
 cd backend
 
+# 复制环境变量配置
+cp .env.example .env
+# 编辑 .env 文件，填入实际配置
+
 # 安装依赖
 cargo install sqlx-cli --no-default-features --features postgres
 cargo install
@@ -220,6 +226,27 @@ npm run build
 # 运行代码检查
 npm run lint
 ```
+
+### 环境变量配置
+
+1. 复制根目录的 `.env.example` 文件为 `.env`
+2. 修改实际配置值：
+   - `DATABASE_URL`: PostgreSQL 连接字符串
+   - `JWT_SECRET`: JWT 密钥（生产环境请使用随机生成的安全密钥）
+   - `ANTHROPIC_API_KEY`: Anthropic API 密钥
+
+```bash
+# 快速开始配置
+cp .env.example .env
+# 编辑 .env 文件
+```
+
+## 安全说明
+
+- 生产环境务必修改 `JWT_SECRET` 为随机生成的安全密钥
+- 数据库密码请使用强密码
+- 建议启用 HTTPS
+- 定期更新 API 密钥
 
 ## 环境变量
 

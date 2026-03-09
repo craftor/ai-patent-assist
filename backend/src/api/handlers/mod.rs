@@ -3,9 +3,7 @@ mod projects;
 mod patents;
 mod copyrights;
 mod templates;
-mod api_keys;
 mod ai;
-mod logs;
 mod users;
 
 pub use auth::{login, register, get_test_account, logout, get_current_user};
@@ -21,12 +19,9 @@ pub use projects::{
 pub use patents::{list_patents, get_patent, generate_patent, update_patent};
 pub use copyrights::{list_copyrights, get_copyright, generate_copyright, update_copyright};
 pub use templates::{list_templates, create_template, update_template, delete_template, get_template};
-pub use api_keys::{list_keys, create_key, revoke_key};
 pub use ai::{list_models, add_model, update_model, delete_model, get_default_model, set_default_model};
-pub use logs::{list_audit_logs, list_ai_usage};
 pub use users::{list_users, get_user, update_user, delete_user, change_password};
 
-use axum::http::StatusCode;
 use serde::{Deserialize, Serialize};
 
 /// 通用 API 响应
@@ -53,10 +48,5 @@ impl<T: Serialize> ApiResponse<T> {
             data: None,
         }
     }
-}
-
-/// 健康检查
-pub async fn health_check() -> StatusCode {
-    StatusCode::OK
 }
 

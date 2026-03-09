@@ -1,4 +1,4 @@
-use crate::models::{AiModelConfig, AiUsageLog};
+use crate::models::AiModelConfig;
 use crate::config::Config;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};

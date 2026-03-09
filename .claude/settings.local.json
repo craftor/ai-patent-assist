@@ -41,7 +41,8 @@
       "Bash(/home/craftor/rust/ai-patent-assist/docker-compose.yml:*)",
       "Bash(/home/craftor/rust/ai-patent-assist/backend/.dockerignore:*)",
       "Bash(/home/craftor/rust/ai-patent-assist/frontend/.dockerignore:*)",
-      "Bash(timeout 10 docker run:*)"
+      "Bash(timeout 10 docker run:*)",
+      "Bash(ls:*)"
     ]
   }
 }

@@ -65,7 +65,6 @@ pub struct UpdatePatentRequest {
     pub abstract_text: Option<String>,
     pub drawings_description: Option<String>,
     pub embodiment: Option<String>,
-    pub change_summary: Option<String>,
 }
 
 /// 获取专利列表

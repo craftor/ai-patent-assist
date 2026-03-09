@@ -1,5 +1,4 @@
 use axum::{extract::State, http::StatusCode, Json};
-use uuid::Uuid;
 
 use crate::api::handlers::ApiResponse;
 

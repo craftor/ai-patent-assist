@@ -2,10 +2,11 @@ mod api;
 mod auth;
 mod config;
 mod db;
+mod middleware;
 mod models;
 mod services;
 
-use axum::{routing::{get, post, put, delete}, Router};
+use axum::{middleware::from_fn_with_state, routing::{get, post, put, delete}, Router};
 use tokio::net::TcpListener;
 use std::sync::Arc;
 
@@ -53,17 +54,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn build_app(state: AppState) -> Router {
-    let api_routes = Router::new()
-        // 健康检查（使用 /api/health 路径以匹配前端 baseURL）
+    // 公开路由（不需要认证）
+    let public_routes = Router::new()
         .route("/health", get(|| async { "OK" }))
         .route("/api/health", get(|| async { "OK" }))
-        // 认证相关
         .route("/api/auth/login", post(api::handlers::login))
         .route("/api/auth/register", post(api::handlers::register))
-        .route("/api/auth/test-account", get(api::handlers::get_test_account))
+        .route("/api/auth/test-account", get(api::handlers::get_test_account));
+
+    // 受保护的路由（需要认证）
+    let protected_routes = Router::new()
+        // 用户管理
         .route("/api/auth/me", get(api::handlers::get_current_user))
         .route("/api/auth/logout", post(api::handlers::logout))
-        // 用户管理
         .route("/api/users", get(api::handlers::list_users))
         .route("/api/users/:id", get(api::handlers::get_user))
         .route("/api/users/:id", put(api::handlers::update_user))
@@ -101,7 +104,10 @@ fn build_app(state: AppState) -> Router {
         .route("/api/ai/models/:id/set-default", post(api::handlers::set_default_model))
         .route("/api/ai/models/default", get(api::handlers::get_default_model));
 
-    api_routes.with_state(state)
+    // 将公开路由和受保护路由合并，并添加认证中间件到受保护路由
+    public_routes
+        .merge(protected_routes.layer(from_fn_with_state(state.clone(), middleware::auth_middleware)))
+        .with_state(state)
 }
 
 #[derive(Clone)]

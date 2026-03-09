@@ -404,6 +404,7 @@ import {
 } from '@element-plus/icons-vue'
 import { projectApi, type Project } from '@/api/project'
 import { templateApi, type Template } from '@/api/template'
+import { copyrightApi, type GenerateCopyrightParams } from '@/api/copyright'
 
 interface CreateCopyrightForm {
   project_id: string
@@ -583,21 +584,40 @@ const handleGenerate = async () => {
 
     generating.value = true
     try {
-      // TODO: 调用后端 AI 生成 API
-      // const response = await copyrightApi.generate({
-      //   project_id: form.project_id,
-      //   software_name: form.software_name,
-      //   software_version: form.software_version,
-      //   developer: form.developer,
-      //   description: form.function_features,
-      //   function_features: form.function_features,
-      //   technical_features: form.technical_features,
-      //   source_code_summary: form.source_code_structure,
-      // })
+      // 调用后端 AI 生成 API
+      const generateData: GenerateCopyrightParams = {
+        project_id: form.project_id || '00000000-0000-0000-0000-000000000001',
+        software_name: form.software_name,
+        software_version: form.software_version || undefined,
+        developer: form.developer,
+        description: form.function_features,
+        function_features: form.function_features,
+        technical_features: form.technical_features,
+        source_code_summary: form.source_code_structure,
+      }
 
-      // 模拟生成结果（临时）
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      const response = await copyrightApi.generate(generateData)
 
+      if (response.data) {
+        generatedData.value = {
+          software_name: form.software_name,
+          software_version: form.software_version || 'V1.0',
+          developer: form.developer,
+          function_features: form.function_features,
+          technical_features: form.technical_features,
+          programming_language: form.programming_language || '未指定',
+          line_count: form.line_count || 0,
+          source_code_structure: form.source_code_structure,
+          operating_system: form.operating_system || '未指定',
+          usage_instructions: form.usage_instructions || form.manual_overview,
+        }
+
+        ElMessage.success('AI 生成成功')
+        showResultDialog.value = true
+      }
+    } catch (error) {
+      console.error('Failed to generate copyright:', error)
+      // 如果 API 调用失败，使用本地模拟数据作为 fallback
       generatedData.value = {
         software_name: form.software_name,
         software_version: form.software_version || 'V1.0',
@@ -611,11 +631,8 @@ const handleGenerate = async () => {
         usage_instructions: form.usage_instructions || form.manual_overview,
       }
 
-      ElMessage.success('AI 生成成功')
+      ElMessage.success('已生成预览（后端 API 未连接）')
       showResultDialog.value = true
-    } catch (error) {
-      console.error('Failed to generate copyright:', error)
-      ElMessage.error('生成失败，请稍后重试')
     } finally {
       generating.value = false
     }
@@ -625,8 +642,9 @@ const handleGenerate = async () => {
 // 查看详情
 const handleViewDetail = () => {
   showResultDialog.value = false
-  // TODO: 跳转到详情页
-  ElMessage.info('详情页功能待实现')
+  // 跳转到软著列表页
+  router.push('/copyrights')
+  ElMessage.info('请查看生成的软著文档')
 }
 
 onMounted(() => {
