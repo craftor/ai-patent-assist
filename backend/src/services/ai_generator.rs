@@ -2,12 +2,36 @@ use crate::config::Config;
 use crate::models::AiModelConfig;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use std::time::Instant;
+use std::time::{Duration, Instant};
+use tokio::time::sleep;
 use uuid::Uuid;
+
+/// AI 重试配置
+#[derive(Debug, Clone)]
+pub struct RetryConfig {
+    pub max_retries: u32,
+    pub initial_delay_ms: u64,
+    pub max_delay_ms: u64,
+    pub multiplier: f64,
+}
+
+impl Default for RetryConfig {
+    fn default() -> Self {
+        Self {
+            max_retries: 3,
+            initial_delay_ms: 1000,
+            max_delay_ms: 30000,
+            multiplier: 2.0,
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct AiGenerator {
     client: Client,
+    config: Config,
+    retry_config: RetryConfig,
+    timeout: Duration,
 }
 
 #[derive(Debug, Serialize)]
@@ -43,10 +67,30 @@ struct Usage {
 
 impl AiGenerator {
     /// 创建一个新的 AiGenerator 实例
-    /// 注意：config 参数目前未使用，但保留以供未来扩展
-    pub fn new(_config: Config) -> Self {
+    pub fn new(config: Config) -> Self {
+        let timeout = Duration::from_secs(60); // 60 秒超时
         Self {
-            client: Client::new(),
+            client: Client::builder()
+                .timeout(timeout)
+                .build()
+                .expect("Failed to create HTTP client"),
+            config,
+            retry_config: RetryConfig::default(),
+            timeout,
+        }
+    }
+
+    /// 创建带有自定义重试配置的 AiGenerator 实例
+    pub fn with_retry_config(config: Config, retry_config: RetryConfig, timeout_secs: u64) -> Self {
+        let timeout = Duration::from_secs(timeout_secs);
+        Self {
+            client: Client::builder()
+                .timeout(timeout)
+                .build()
+                .expect("Failed to create HTTP client"),
+            config,
+            retry_config,
+            timeout,
         }
     }
 
@@ -60,7 +104,7 @@ impl AiGenerator {
         invention_description: &str,
         embodiments: &[String],
         claims_input: Option<&str>,
-    ) -> Result<PatentGenerationResult, Box<dyn std::error::Error>> {
+    ) -> Result<PatentGenerationResult, Box<dyn std::error::Error + Send + Sync>> {
         let start = Instant::now();
 
         let system_prompt = r#"你是一位专业的专利代理人，具有多年的专利撰写经验。
@@ -139,7 +183,7 @@ impl AiGenerator {
         function_features: &str,
         technical_features: &str,
         source_code_summary: Option<&str>,
-    ) -> Result<CopyrightGenerationResult, Box<dyn std::error::Error>> {
+    ) -> Result<CopyrightGenerationResult, Box<dyn std::error::Error + Send + Sync>> {
         let start = Instant::now();
 
         let system_prompt = r#"你是一位专业的软件著作权文档撰写专家。
@@ -210,16 +254,68 @@ impl AiGenerator {
         })
     }
 
-    /// 调用 Anthropic API
+    /// 调用 Anthropic API（带重试机制）
     async fn call_anthropic_api(
         &self,
         model: &str,
         system_prompt: &str,
         user_prompt: &str,
         max_tokens: i32,
-    ) -> Result<AnthropicResponse, Box<dyn std::error::Error>> {
-        let api_key = std::env::var("ANTHROPIC_API_KEY").unwrap_or_else(|_| "test-key".to_string());
+    ) -> Result<AnthropicResponse, Box<dyn std::error::Error + Send + Sync>> {
+        let api_key = self.config.anthropic_api_key.clone();
+        if api_key.is_empty() || api_key == "test-key" {
+            tracing::warn!("Using test API key for Anthropic API");
+        }
 
+        let mut attempt = 0;
+        let mut last_error_msg = String::new();
+
+        while attempt <= self.retry_config.max_retries {
+            attempt += 1;
+
+            match self
+                .call_anthropic_api_once(&api_key, model, system_prompt, user_prompt, max_tokens)
+                .await
+            {
+                Ok(response) => {
+                    tracing::info!("Anthropic API call succeeded on attempt {}", attempt);
+                    return Ok(response);
+                }
+                Err(e) => {
+                    last_error_msg = e.to_string();
+
+                    // 如果是认证错误等永久性错误，不重试
+                    if last_error_msg.contains("401") || last_error_msg.contains("403") {
+                        tracing::error!("Authentication error, not retrying");
+                        return Err(e);
+                    }
+
+                    if attempt <= self.retry_config.max_retries {
+                        let delay = self.calculate_delay(attempt);
+                        tracing::warn!(
+                            "Anthropic API call failed (attempt {}): {}. Retrying in {}ms...",
+                            attempt,
+                            last_error_msg,
+                            delay
+                        );
+                        sleep(Duration::from_millis(delay)).await;
+                    }
+                }
+            }
+        }
+
+        Err(last_error_msg.into())
+    }
+
+    /// 单次调用 Anthropic API
+    async fn call_anthropic_api_once(
+        &self,
+        api_key: &str,
+        model: &str,
+        system_prompt: &str,
+        user_prompt: &str,
+        max_tokens: i32,
+    ) -> Result<AnthropicResponse, Box<dyn std::error::Error + Send + Sync>> {
         let request = AnthropicRequest {
             model: model.to_string(),
             max_tokens,
@@ -240,13 +336,23 @@ impl AiGenerator {
             .send()
             .await?;
 
-        if !response.status().is_success() {
+        let status = response.status();
+
+        if !status.is_success() {
             let error = response.text().await?;
-            return Err(format!("Anthropic API error: {}", error).into());
+            return Err(format!("Anthropic API error ({}): {}", status, error).into());
         }
 
         let result: AnthropicResponse = response.json().await?;
         Ok(result)
+    }
+
+    /// 计算指数退避延迟
+    fn calculate_delay(&self, attempt: u32) -> u64 {
+        let base_delay = self.retry_config.initial_delay_ms as f64;
+        let multiplier = self.retry_config.multiplier;
+        let delay = base_delay * multiplier.powi(attempt as i32 - 1);
+        delay.min(self.retry_config.max_delay_ms as f64) as u64
     }
 
     /// 记录 AI 使用日志

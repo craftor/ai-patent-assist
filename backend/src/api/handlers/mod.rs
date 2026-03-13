@@ -21,6 +21,7 @@ pub use templates::{
 };
 pub use users::{change_password, delete_user, get_user, list_users, update_user};
 
+use axum::{Json, response::IntoResponse};
 use serde::{Deserialize, Serialize};
 
 /// 通用 API 响应
@@ -83,5 +84,11 @@ impl<T: Serialize> ApiResponse<T> {
                 details: Some(details),
             }),
         }
+    }
+}
+
+impl<T: Serialize> IntoResponse for ApiResponse<T> {
+    fn into_response(self) -> axum::response::Response {
+        Json(self).into_response()
     }
 }

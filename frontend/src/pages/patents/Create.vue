@@ -286,7 +286,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed, watch, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
@@ -304,6 +304,7 @@ import {
 import { projectApi, type Project } from '@/api/project'
 import { templateApi, type Template } from '@/api/template'
 import { patentApi, type GeneratePatentParams } from '@/api/patent'
+import { useAppStore } from '@/stores/app'
 
 // 专利类型
 type PatentType = 'invention' | 'utility' | 'design'
@@ -320,8 +321,16 @@ interface CreatePatentForm {
   claims_input: string
 }
 
+interface PatentDraft {
+  form: CreatePatentForm
+  technical_solution: string
+  beneficial_effects: string
+  saved_at: string
+}
+
 const router = useRouter()
 const route = useRoute()
+const appStore = useAppStore()
 
 const formRef = ref<FormInstance>()
 const projects = ref<Project[]>([])
@@ -329,10 +338,16 @@ const templates = ref<Template[]>([])
 const selectedTemplateId = ref<string>('')
 const generating = ref(false)
 const showResultDialog = ref(false)
+const generatedPatentId = ref<string>('')
 
 // 额外字段，用于合并到 invention_description
 const technical_solution = ref('')
 const beneficial_effects = ref('')
+
+// 草稿相关
+const DRAFT_KEY = 'patent_create_draft'
+const draftTimer = ref<number | null>(null)
+const hasDraft = ref(false)
 
 const form = reactive<CreatePatentForm>({
   project_id: '',
@@ -414,7 +429,36 @@ const handleTemplateChange = () => {
   const template = selectedTemplate.value
   if (!template) return
 
-  ElMessage.success('已选择模板，请继续填写表单内容')
+  // 根据模板类型设置专利类型
+  if (template.template_type === 'patent_invention') {
+    form.patent_type = 'invention'
+  } else if (template.template_type === 'patent_utility') {
+    form.patent_type = 'utility'
+  } else if (template.template_type === 'patent_design') {
+    form.patent_type = 'design'
+  }
+
+  // 从模板内容中提取字段并填充表单
+  // 假设 content_template 是 JSON 格式，包含字段映射
+  try {
+    // 尝试解析模板内容为 JSON
+    const templateData = JSON.parse(template.content_template)
+    if (templateData.title) form.title = templateData.title
+    if (templateData.technical_field) form.technical_field = templateData.technical_field
+    if (templateData.background_art) form.background_art = templateData.background_art
+    if (templateData.invention_description) form.invention_description = templateData.invention_description
+    if (templateData.technical_solution) technical_solution.value = templateData.technical_solution
+    if (templateData.beneficial_effects) beneficial_effects.value = templateData.beneficial_effects
+    if (templateData.embodiments && Array.isArray(templateData.embodiments)) {
+      form.embodiments = templateData.embodiments
+    }
+    if (templateData.claims_input) form.claims_input = templateData.claims_input
+  } catch {
+    // 如果不是 JSON 格式，将内容作为技术领域填充
+    form.technical_field = template.content_template
+  }
+
+  ElMessage.success('已选择模板，表单已自动填充')
 }
 
 // 添加实施方式
@@ -478,24 +522,18 @@ const handleGenerate = async () => {
           claims_text: form.claims_input || '（待 AI 生成权利要求书）',
           abstract_text: `本发明公开了${form.title}，属于${form.technical_field}领域。${technical_solution.value?.substring(0, 200)}...`,
         }
+        // 保存生成的专利 ID
+        generatedPatentId.value = response.data.id
+
+        // 清除草稿
+        clearDraft()
 
         ElMessage.success('AI 生成成功')
         showResultDialog.value = true
       }
     } catch (error) {
       console.error('Failed to generate patent:', error)
-      // 如果 API 调用失败，使用本地模拟数据作为 fallback
-      generatedData.value = {
-        title: form.title,
-        technical_field: form.technical_field,
-        background_art: form.background_art,
-        invention_content: fullInventionContent,
-        claims_text: form.claims_input || '（待 AI 生成权利要求书）',
-        abstract_text: `本发明公开了${form.title}，属于${form.technical_field}领域。${technical_solution.value?.substring(0, 200)}...`,
-      }
-
-      ElMessage.success('已生成预览（后端 API 未连接）')
-      showResultDialog.value = true
+      ElMessage.error('生成失败：' + (error as any).message || '未知错误')
     } finally {
       generating.value = false
     }
@@ -505,14 +543,119 @@ const handleGenerate = async () => {
 // 查看详情
 const handleViewDetail = () => {
   showResultDialog.value = false
-  // 跳转到专利列表页
-  router.push('/patents')
-  ElMessage.info('请查看生成的专利文档')
+  // 清除草稿
+  clearDraft()
+  // 跳转到专利编辑页
+  if (generatedPatentId.value) {
+    router.push(`/patents/${generatedPatentId.value}/edit`)
+  } else {
+    router.push('/patents')
+  }
+}
+
+// 草稿保存和恢复功能
+const saveDraft = () => {
+  const draft: PatentDraft = {
+    form: { ...form },
+    technical_solution: technical_solution.value,
+    beneficial_effects: beneficial_effects.value,
+    saved_at: new Date().toISOString(),
+  }
+  localStorage.setItem(DRAFT_KEY, JSON.stringify(draft))
+  hasDraft.value = true
+}
+
+const loadDraft = () => {
+  const draftStr = localStorage.getItem(DRAFT_KEY)
+  if (!draftStr) return false
+
+  try {
+    const draft: PatentDraft = JSON.parse(draftStr)
+    form.project_id = draft.form.project_id
+    form.patent_type = draft.form.patent_type
+    form.title = draft.form.title
+    form.technical_field = draft.form.technical_field
+    form.background_art = draft.form.background_art
+    form.invention_description = draft.form.invention_description
+    form.embodiments = draft.form.embodiments
+    form.claims_input = draft.form.claims_input
+    technical_solution.value = draft.technical_solution
+    beneficial_effects.value = draft.beneficial_effects
+    hasDraft.value = true
+    return true
+  } catch (e) {
+    console.error('Failed to load draft:', e)
+    return false
+  }
+}
+
+const clearDraft = () => {
+  localStorage.removeItem(DRAFT_KEY)
+  hasDraft.value = false
+}
+
+// 监听表单变化，自动保存草稿
+const setupDraftAutoSave = () => {
+  watch(
+    () => ({
+      ...form,
+      technical_solution: technical_solution.value,
+      beneficial_effects: beneficial_effects.value,
+    }),
+    () => {
+      // 防抖：3 秒后保存
+      if (draftTimer.value) {
+        clearTimeout(draftTimer.value)
+      }
+      draftTimer.value = window.setTimeout(() => {
+        saveDraft()
+        appStore.success('草稿已自动保存', { duration: 2000 })
+      }, 3000)
+    },
+    { deep: true }
+  )
+}
+
+// 恢复草稿提示
+const confirmRestoreDraft = () => {
+  if (!hasDraft.value) return
+
+  ElMessageBox.confirm(
+    '检测到未完成的草稿，是否恢复？',
+    '恢复草稿',
+    {
+      confirmButtonText: '恢复',
+      cancelButtonText: '取消',
+      type: 'info',
+    }
+  ).then(() => {
+    loadDraft()
+    appStore.success('草稿已恢复')
+  }).catch(() => {
+    clearDraft()
+  })
 }
 
 onMounted(() => {
   fetchProjects()
   fetchTemplates()
+  setupDraftAutoSave()
+
+  // 检查是否有草稿
+  const draftStr = localStorage.getItem(DRAFT_KEY)
+  if (draftStr) {
+    hasDraft.value = true
+    // 显示恢复草稿提示
+    setTimeout(() => {
+      confirmRestoreDraft()
+    }, 500)
+  }
+})
+
+onUnmounted(() => {
+  if (draftTimer.value) {
+    clearTimeout(draftTimer.value)
+  }
 })
 </script>
 
