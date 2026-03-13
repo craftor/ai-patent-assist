@@ -177,7 +177,7 @@
               />
             </el-form-item>
 
-            <el-form-item label="具体实施方式">
+            <el-form-item label="具体实施方式" style="width: 100%">
               <div class="embodiment-section">
                 <div v-for="(embodiment, index) in form.embodiments" :key="index" class="embodiment-item">
                   <div class="embodiment-header">
@@ -199,7 +199,7 @@
                     maxlength="2000"
                   />
                 </div>
-                <el-button type="primary" @click="addEmbodiment" style="margin-top: 10px">
+                <el-button type="primary" @click="addEmbodiment" style="margin-top: 10px; width: 100%">
                   <el-icon><Plus /></el-icon>
                   添加实施方式
                 </el-button>
@@ -731,6 +731,7 @@ onUnmounted(() => {
   padding: 12px;
   background: var(--el-fill-color-light);
   border-radius: 8px;
+  width: 100%;
 }
 
 .embodiment-header {
