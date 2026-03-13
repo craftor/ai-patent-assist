@@ -25,7 +25,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 加载配置
     let config = Config::load()?;
-    tracing::info!("Loaded config");
+    let is_dev = config.is_dev_environment();
+    tracing::info!("配置加载成功 - 环境：{}", if is_dev { "开发" } else { "生产" });
+
+    // 显示配置信息（敏感信息脱敏）
+    tracing::info!("  - 数据库：{}", mask_database_url(&config.database_url));
+    tracing::info!("  - JWT 密钥：{} 字符", config.jwt_secret.len());
+    tracing::info!("  - JWT 过期：{} 小时", config.jwt_expiry_hours);
+    tracing::info!("  - 服务端口：{}", config.server_port);
+    tracing::info!("  - API Key: {}***", &config.anthropic_api_key.chars().take(5).collect::<String>());
+
     let config = Arc::new(config);
 
     // 创建数据库连接池
@@ -149,4 +158,25 @@ pub struct AppState {
     pub pool: Arc<sqlx::PgPool>,
     pub config: Arc<Config>,
     pub ai_generator: Arc<AiGenerator>,
+}
+
+/// 脱敏数据库 URL（用于日志）
+fn mask_database_url(url: &str) -> String {
+    // 简单实现：只显示协议和主机
+    if let Some(start) = url.find("://") {
+        let protocol = &url[..start + 3];
+        let rest = &url[start + 3..];
+        if let Some(at) = rest.find('@') {
+            // 有认证信息
+            if let Some(slash) = rest[at..].find('/') {
+                format!("{}***@{}***", protocol, &rest[at + 1..at + slash])
+            } else {
+                format!("{}***@{}", protocol, &rest[at + 1..])
+            }
+        } else {
+            format!("{}{}", protocol, rest)
+        }
+    } else {
+        "***".to_string()
+    }
 }

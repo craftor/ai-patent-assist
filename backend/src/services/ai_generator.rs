@@ -301,3 +301,63 @@ pub struct CopyrightGenerationResult {
     pub output_tokens: i32,
     pub duration_ms: i32,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::Config;
+
+    fn create_test_config() -> Config {
+        Config {
+            database_url: "postgres://localhost/test".to_string(),
+            jwt_secret: "test-secret".to_string(),
+            jwt_expiry_hours: 24,
+            server_port: 3000,
+            anthropic_api_key: "sk-test-key".to_string(),
+        }
+    }
+
+    #[test]
+    fn test_patent_generation_result() {
+        let result = PatentGenerationResult {
+            content: "Test content".to_string(),
+            input_tokens: 100,
+            output_tokens: 200,
+            duration_ms: 1500,
+        };
+
+        assert_eq!(result.content, "Test content");
+        assert_eq!(result.input_tokens, 100);
+        assert_eq!(result.output_tokens, 200);
+        assert_eq!(result.duration_ms, 1500);
+    }
+
+    #[test]
+    fn test_copyright_generation_result() {
+        let result = CopyrightGenerationResult {
+            content: "Test copyright content".to_string(),
+            input_tokens: 50,
+            output_tokens: 150,
+            duration_ms: 1000,
+        };
+
+        assert_eq!(result.content, "Test copyright content");
+        assert_eq!(result.input_tokens, 50);
+        assert_eq!(result.output_tokens, 150);
+        assert_eq!(result.duration_ms, 1000);
+    }
+
+    #[tokio::test]
+    async fn test_ai_generator_new() {
+        let config = create_test_config();
+        let _generator = AiGenerator::new(config);
+        // 验证实例可以创建
+    }
+
+    #[tokio::test]
+    async fn test_ai_generator_instance() {
+        let config = create_test_config();
+        let _generator = AiGenerator::new(config);
+        // 验证实例可以创建
+    }
+}

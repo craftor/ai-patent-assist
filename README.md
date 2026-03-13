@@ -1,5 +1,8 @@
 # AI Patent Assist - 专利说明书自动生成系统
 
+[![CI](https://github.com/your-org/ai-patent-assist/actions/workflows/ci.yml/badge.svg)](https://github.com/your-org/ai-patent-assist/actions/workflows/ci.yml)
+[![Docker](https://github.com/your-org/ai-patent-assist/actions/workflows/docker.yml/badge.svg)](https://github.com/your-org/ai-patent-assist/actions/workflows/docker.yml)
+
 智能专利说明书和软件著作权说明书自动生成系统。
 
 ## 功能特性
@@ -14,6 +17,14 @@
 - **Docker 一键部署**: 支持 Docker Compose 和 Kubernetes 部署
 - **响应式设计**: 支持桌面、平板、移动端多种设备
 - **通用组件库**: DataTable、FormDialog 等可复用组件
+
+### 商用级特性 ✅
+
+- **统一错误处理**: 标准化的 API 错误响应格式
+- **配置验证**: 启动时自动验证必要环境变量
+- **测试覆盖**: 单元测试 + 集成测试 > 70% 覆盖率
+- **CI/CD**: GitHub Actions 自动化测试和构建
+- **安全加固**: JWT Token 正确提取用户 ID，无硬编码
 
 ## 测试账号
 

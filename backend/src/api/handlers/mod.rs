@@ -29,6 +29,13 @@ pub struct ApiResponse<T> {
     pub success: bool,
     pub message: Option<String>,
     pub data: Option<T>,
+    pub error: Option<ErrorDetail>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ErrorDetail {
+    pub code: Option<String>,
+    pub details: Option<serde_json::Value>,
 }
 
 impl<T: Serialize> ApiResponse<T> {
@@ -37,6 +44,7 @@ impl<T: Serialize> ApiResponse<T> {
             success: true,
             message: None,
             data: Some(data),
+            error: None,
         }
     }
 
@@ -45,6 +53,35 @@ impl<T: Serialize> ApiResponse<T> {
             success: false,
             message: Some(message.into()),
             data: None,
+            error: None,
+        }
+    }
+
+    pub fn error_with_code(message: impl Into<String>, code: impl Into<String>) -> Self {
+        Self {
+            success: false,
+            message: Some(message.into()),
+            data: None,
+            error: Some(ErrorDetail {
+                code: Some(code.into()),
+                details: None,
+            }),
+        }
+    }
+
+    pub fn error_with_details(
+        message: impl Into<String>,
+        code: impl Into<String>,
+        details: serde_json::Value,
+    ) -> Self {
+        Self {
+            success: false,
+            message: Some(message.into()),
+            data: None,
+            error: Some(ErrorDetail {
+                code: Some(code.into()),
+                details: Some(details),
+            }),
         }
     }
 }

@@ -2,6 +2,7 @@ mod api;
 mod auth;
 pub mod config;
 mod db;
+pub mod error;
 mod middleware;
 mod models;
 pub mod services;

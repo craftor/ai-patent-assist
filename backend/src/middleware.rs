@@ -138,3 +138,116 @@ pub fn get_current_user_id_str(extensions: &axum::http::Extensions) -> Result<St
 
     Ok(claims.sub.clone())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_is_public_endpoint() {
+        // 公开端点
+        assert!(is_public_endpoint("/api/auth/login"));
+        assert!(is_public_endpoint("/api/auth/register"));
+        assert!(is_public_endpoint("/api/auth/test-account"));
+        assert!(is_public_endpoint("/health"));
+        assert!(is_public_endpoint("/api/health"));
+        assert!(is_public_endpoint("/api/auth/login/extra"));
+
+        // 受保护端点
+        assert!(!is_public_endpoint("/api/projects"));
+        assert!(!is_public_endpoint("/api/users"));
+        assert!(!is_public_endpoint("/api/patents"));
+        assert!(!is_public_endpoint("/unknown"));
+    }
+
+    #[test]
+    fn test_generate_token() {
+        // 设置测试用的 JWT_SECRET
+        std::env::set_var("JWT_SECRET", "test-secret-key-for-unit-tests-32chars");
+
+        let result = generate_token("test-user-id", "testuser");
+        assert!(result.is_ok());
+
+        let token = result.unwrap();
+        assert!(!token.is_empty());
+
+        // 验证生成的 token 可以被解析
+        let secret = get_jwt_secret();
+        let mut validation = Validation::new(Algorithm::HS256);
+        validation.validate_exp = false;
+
+        let decoded = decode::<Claims>(&token, &DecodingKey::from_secret(&secret), &validation);
+        assert!(decoded.is_ok());
+
+        let claims = decoded.unwrap().claims;
+        assert_eq!(claims.sub, "test-user-id");
+        assert_eq!(claims.username, "testuser");
+
+        // 清理环境变量
+        std::env::remove_var("JWT_SECRET");
+    }
+
+    #[test]
+    fn test_get_current_user_id() {
+        use axum::http::Extensions;
+
+        let mut extensions = Extensions::new();
+        let claims = Claims {
+            sub: "123e4567-e89b-12d3-a456-426614174000".to_string(),
+            username: "testuser".to_string(),
+            exp: 0,
+            iat: 0,
+        };
+        extensions.insert(claims);
+
+        let result = get_current_user_id(&extensions);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().to_string(), "123e4567-e89b-12d3-a456-426614174000");
+    }
+
+    #[test]
+    fn test_get_current_user_id_missing_claims() {
+        use axum::http::Extensions;
+
+        let extensions = Extensions::new();
+        let result = get_current_user_id(&extensions);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[test]
+    fn test_get_current_user_id_invalid_uuid() {
+        use axum::http::Extensions;
+
+        let mut extensions = Extensions::new();
+        let claims = Claims {
+            sub: "invalid-uuid".to_string(),
+            username: "testuser".to_string(),
+            exp: 0,
+            iat: 0,
+        };
+        extensions.insert(claims);
+
+        let result = get_current_user_id(&extensions);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    #[test]
+    fn test_get_current_user_id_str() {
+        use axum::http::Extensions;
+
+        let mut extensions = Extensions::new();
+        let claims = Claims {
+            sub: "test-user-id-123".to_string(),
+            username: "testuser".to_string(),
+            exp: 0,
+            iat: 0,
+        };
+        extensions.insert(claims);
+
+        let result = get_current_user_id_str(&extensions);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "test-user-id-123");
+    }
+}
