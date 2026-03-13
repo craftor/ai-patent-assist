@@ -36,3 +36,6 @@ lcov/
 
 # Debug
 debug/
+
+# Worktrees
+.worktrees/
