@@ -1,8 +1,12 @@
-use axum::{extract::{State, Path}, http::StatusCode, Json};
+use axum::{
+    extract::{Path, State},
+    http::StatusCode,
+    Json,
+};
 
 use crate::api::handlers::ApiResponse;
-use crate::AppState;
 use crate::auth::{hash_password, verify_password};
+use crate::AppState;
 
 #[derive(Debug, serde::Serialize, sqlx::FromRow)]
 pub struct User {
@@ -104,12 +108,11 @@ pub async fn change_password(
     tracing::info!("Password change request for user {}", id);
 
     // 获取当前用户的密码哈希
-    let user_result = sqlx::query_scalar::<_, String>(
-        "SELECT password_hash FROM users WHERE id = $1::uuid"
-    )
-    .bind(&id)
-    .fetch_optional(&*state.pool)
-    .await;
+    let user_result =
+        sqlx::query_scalar::<_, String>("SELECT password_hash FROM users WHERE id = $1::uuid")
+            .bind(&id)
+            .fetch_optional(&*state.pool)
+            .await;
 
     tracing::info!("Query result: {:?}", user_result);
 
@@ -131,7 +134,8 @@ pub async fn change_password(
     let password_valid = verify_password(&payload.current_password, &current_password_hash);
 
     // 如果是测试账户的占位符哈希，使用 fallback 验证
-    let password_valid = if !password_valid && current_password_hash.contains("invalid_placeholder") {
+    let password_valid = if !password_valid && current_password_hash.contains("invalid_placeholder")
+    {
         tracing::warn!("Using fallback password validation for test account");
         payload.current_password == "admin123"
     } else {
@@ -158,17 +162,15 @@ pub async fn change_password(
     };
 
     // 更新密码
-    sqlx::query(
-        "UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2::uuid"
-    )
-    .bind(&new_password_hash)
-    .bind(&id)
-    .execute(&*state.pool)
-    .await
-    .map_err(|e| {
-        tracing::error!("Failed to update password: {}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
+    sqlx::query("UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2::uuid")
+        .bind(&new_password_hash)
+        .bind(&id)
+        .execute(&*state.pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to update password: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
 
     tracing::info!("Password updated successfully for user {}", id);
 

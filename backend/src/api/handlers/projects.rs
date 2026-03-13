@@ -6,7 +6,9 @@ use axum::{
 use serde::{Deserialize, Serialize};
 
 use super::ApiResponse;
+use crate::middleware::Claims;
 use crate::AppState;
+use axum::extract::Extension;
 
 /// 项目数据结构
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
@@ -53,14 +55,10 @@ pub struct Attachment {
 }
 
 /// 获取项目列表
-pub async fn list_projects(
-    State(state): State<AppState>,
-) -> Json<ApiResponse<Vec<Project>>> {
-    let projects = sqlx::query_as::<_, Project>(
-        "SELECT * FROM projects ORDER BY updated_at DESC"
-    )
-    .fetch_all(&*state.pool)
-    .await;
+pub async fn list_projects(State(state): State<AppState>) -> Json<ApiResponse<Vec<Project>>> {
+    let projects = sqlx::query_as::<_, Project>("SELECT * FROM projects ORDER BY updated_at DESC")
+        .fetch_all(&*state.pool)
+        .await;
 
     match projects {
         Ok(projects) => Json(ApiResponse::success(projects)),
@@ -76,12 +74,10 @@ pub async fn get_project(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Json<ApiResponse<Project>>, StatusCode> {
-    let project = sqlx::query_as::<_, Project>(
-        "SELECT * FROM projects WHERE id = $1"
-    )
-    .bind(&id)
-    .fetch_optional(&*state.pool)
-    .await;
+    let project = sqlx::query_as::<_, Project>("SELECT * FROM projects WHERE id = $1")
+        .bind(&id)
+        .fetch_optional(&*state.pool)
+        .await;
 
     match project {
         Ok(Some(project)) => Ok(Json(ApiResponse::success(project))),
@@ -96,6 +92,7 @@ pub async fn get_project(
 /// 创建新项目
 pub async fn create_project(
     State(state): State<AppState>,
+    Extension(claims): Extension<Claims>,
     Json(req): Json<CreateProjectRequest>,
 ) -> Json<ApiResponse<Project>> {
     // 验证项目类型
@@ -103,17 +100,23 @@ pub async fn create_project(
         return Json(ApiResponse::error("Invalid project type"));
     }
 
-    // 使用默认用户 ID（临时方案，后续应添加认证中间件获取当前用户）
-    let default_user_id = "00000000-0000-0000-0000-000000000001";
+    // 从 JWT Claims 获取当前用户 ID
+    let user_id = match uuid::Uuid::parse_str(&claims.sub) {
+        Ok(id) => id,
+        Err(e) => {
+            tracing::error!("Failed to parse user ID from JWT: {}", e);
+            return Json(ApiResponse::error("Invalid user ID"));
+        }
+    };
 
     let project = sqlx::query_as::<_, Project>(
         r#"
         INSERT INTO projects (user_id, name, description, type, status, metadata)
         VALUES ($1, $2, $3, $4, 'draft', '{}')
         RETURNING *
-        "#
+        "#,
     )
-    .bind(uuid::Uuid::parse_str(default_user_id).unwrap())
+    .bind(user_id)
     .bind(&req.name)
     .bind(&req.description)
     .bind(&req.r#type)
@@ -173,7 +176,7 @@ pub async fn update_project(
         SET name = $1, description = $2, status = $3, completed_at = $4, updated_at = NOW()
         WHERE id = $5
         RETURNING *
-        "#
+        "#,
     )
     .bind(&name)
     .bind(&description)
@@ -221,6 +224,7 @@ pub async fn delete_project(
 pub async fn upload_attachment(
     State(state): State<AppState>,
     Path(project_id): Path<String>,
+    Extension(claims): Extension<Claims>,
     mut multipart: axum::extract::Multipart,
 ) -> Json<ApiResponse<Attachment>> {
     // 获取第一个文件字段
@@ -248,15 +252,21 @@ pub async fn upload_attachment(
 
     // 保存文件
     match tokio::fs::write(&file_path, &data).await {
-        Ok(_) => {},
+        Ok(_) => {}
         Err(e) => {
             tracing::error!("Failed to save file: {}", e);
             return Json(ApiResponse::error(format!("Failed to save file: {}", e)));
         }
     }
 
-    // 默认用户 ID
-    let default_user_id = "00000000-0000-0000-0000-000000000001";
+    // 从 JWT Claims 获取当前用户 ID
+    let user_id = match uuid::Uuid::parse_str(&claims.sub) {
+        Ok(id) => id,
+        Err(e) => {
+            tracing::error!("Failed to parse user ID from JWT: {}", e);
+            return Json(ApiResponse::error("Invalid user ID"));
+        }
+    };
 
     // 保存到数据库
     let attachment = sqlx::query_as::<_, Attachment>(
@@ -272,7 +282,7 @@ pub async fn upload_attachment(
     .bind(&file_path)
     .bind(content_type)
     .bind(file_size)
-    .bind(uuid::Uuid::parse_str(default_user_id).unwrap())
+    .bind(user_id)
     .fetch_one(&*state.pool)
     .await;
 
@@ -282,7 +292,10 @@ pub async fn upload_attachment(
             tracing::error!("Failed to save attachment metadata: {}", e);
             // 清理已保存的文件
             let _ = tokio::fs::remove_file(&file_path).await;
-            Json(ApiResponse::error(format!("Failed to save attachment: {}", e)))
+            Json(ApiResponse::error(format!(
+                "Failed to save attachment: {}",
+                e
+            )))
         }
     }
 }
@@ -294,7 +307,7 @@ pub async fn delete_attachment(
 ) -> Result<StatusCode, StatusCode> {
     // 首先获取附件信息以便删除文件
     let attachment = sqlx::query_as::<_, Attachment>(
-        "SELECT * FROM project_attachments WHERE project_id = $1 AND id = $2"
+        "SELECT * FROM project_attachments WHERE project_id = $1 AND id = $2",
     )
     .bind(&project_id)
     .bind(&file_id)
@@ -307,13 +320,11 @@ pub async fn delete_attachment(
         let _ = tokio::fs::remove_file(&attachment.file_path).await;
     }
 
-    let result = sqlx::query(
-        "DELETE FROM project_attachments WHERE project_id = $1 AND id = $2"
-    )
-    .bind(&project_id)
-    .bind(&file_id)
-    .execute(&*state.pool)
-    .await;
+    let result = sqlx::query("DELETE FROM project_attachments WHERE project_id = $1 AND id = $2")
+        .bind(&project_id)
+        .bind(&file_id)
+        .execute(&*state.pool)
+        .await;
 
     match result {
         Ok(res) => {

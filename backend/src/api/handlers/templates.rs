@@ -64,7 +64,7 @@ pub async fn get_template(
             created_at,
             updated_at
         FROM document_templates
-        WHERE id = $1"#
+        WHERE id = $1"#,
     )
     .bind(id)
     .fetch_optional(&*state.pool)
@@ -99,7 +99,7 @@ pub async fn list_templates(
             updated_at
         FROM document_templates
         WHERE is_active = true
-        ORDER BY is_system DESC, created_at DESC"#
+        ORDER BY is_system DESC, created_at DESC"#,
     )
     .fetch_all(&*state.pool)
     .await;
@@ -133,7 +133,7 @@ pub async fn create_template(
             is_active,
             created_by,
             created_at,
-            updated_at"#
+            updated_at"#,
     )
     .bind(&payload.name)
     .bind(&payload.template_type)
@@ -181,7 +181,7 @@ pub async fn update_template(
             is_active,
             created_by,
             created_at,
-            updated_at"#
+            updated_at"#,
     )
     .bind(id)
     .bind(payload.name)
@@ -209,12 +209,11 @@ pub async fn delete_template(
     Path(id): Path<Uuid>,
 ) -> Result<StatusCode, StatusCode> {
     // 先检查是否是系统模板
-    let check_result = sqlx::query_scalar::<_, bool>(
-        "SELECT is_system FROM document_templates WHERE id = $1"
-    )
-    .bind(id)
-    .fetch_optional(&*state.pool)
-    .await;
+    let check_result =
+        sqlx::query_scalar::<_, bool>("SELECT is_system FROM document_templates WHERE id = $1")
+            .bind(id)
+            .fetch_optional(&*state.pool)
+            .await;
 
     match check_result {
         Ok(Some(true)) => {
@@ -235,12 +234,10 @@ pub async fn delete_template(
     }
 
     // 执行删除
-    let result = sqlx::query(
-        "DELETE FROM document_templates WHERE id = $1"
-    )
-    .bind(id)
-    .execute(&*state.pool)
-    .await;
+    let result = sqlx::query("DELETE FROM document_templates WHERE id = $1")
+        .bind(id)
+        .execute(&*state.pool)
+        .await;
 
     match result {
         Ok(rows) => {

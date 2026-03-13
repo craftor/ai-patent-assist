@@ -6,8 +6,9 @@ use axum::{
     middleware::Next,
     response::Response,
 };
-use jsonwebtoken::{decode, DecodingKey, Validation, Algorithm};
+use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 use crate::AppState;
 
@@ -16,8 +17,8 @@ use crate::AppState;
 pub struct Claims {
     pub sub: String, // 用户 ID
     pub username: String,
-    pub exp: usize,  // 过期时间
-    pub iat: usize,  // 签发时间
+    pub exp: usize, // 过期时间
+    pub iat: usize, // 签发时间
 }
 
 /// 提取 JWT 密钥
@@ -73,11 +74,7 @@ pub async fn auth_middleware(
     let mut validation = Validation::new(Algorithm::HS256);
     validation.validate_exp = false; // 开发环境不验证过期时间
 
-    match decode::<Claims>(
-        token,
-        &DecodingKey::from_secret(&secret),
-        &validation,
-    ) {
+    match decode::<Claims>(token, &DecodingKey::from_secret(&secret), &validation) {
         Ok(token_data) => {
             // Token 有效，将 Claims 放入 request extensions
             request.extensions_mut().insert(token_data.claims);
@@ -103,7 +100,10 @@ fn is_public_endpoint(path: &str) -> bool {
 }
 
 /// 生成 JWT Token
-pub fn generate_token(user_id: &str, username: &str) -> Result<String, jsonwebtoken::errors::Error> {
+pub fn generate_token(
+    user_id: &str,
+    username: &str,
+) -> Result<String, jsonwebtoken::errors::Error> {
     use chrono::Utc;
     use jsonwebtoken::{encode, EncodingKey, Header};
 
@@ -122,4 +122,19 @@ pub fn generate_token(user_id: &str, username: &str) -> Result<String, jsonwebto
         &claims,
         &EncodingKey::from_secret(&secret),
     )
+}
+
+/// 从请求扩展中获取当前用户 ID
+/// 这是生产级别的辅助函数，用于从 JWT Claims 中提取用户 ID
+pub fn get_current_user_id(extensions: &axum::http::Extensions) -> Result<Uuid, StatusCode> {
+    let claims = extensions.get::<Claims>().ok_or(StatusCode::UNAUTHORIZED)?;
+
+    Uuid::parse_str(&claims.sub).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+}
+
+/// 从请求扩展中获取当前用户 ID 字符串
+pub fn get_current_user_id_str(extensions: &axum::http::Extensions) -> Result<String, StatusCode> {
+    let claims = extensions.get::<Claims>().ok_or(StatusCode::UNAUTHORIZED)?;
+
+    Ok(claims.sub.clone())
 }

@@ -24,7 +24,9 @@ pub fn verify_password(password: &str, hash: &str) -> bool {
     match PasswordHash::new(hash) {
         Ok(parsed_hash) => {
             let argon2 = Argon2::default();
-            argon2.verify_password(password.as_bytes(), &parsed_hash).is_ok()
+            argon2
+                .verify_password(password.as_bytes(), &parsed_hash)
+                .is_ok()
         }
         Err(_) => false,
     }

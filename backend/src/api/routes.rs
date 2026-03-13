@@ -1,14 +1,13 @@
 // API 路由模块
 // 重新导出所有 handlers 供 main.rs 使用
-
-pub use crate::api::handlers::health_check;
+// 注意：此文件仅供兼容性保留，实际路由定义在 main.rs 的 build_app 函数中
 
 // Auth handlers
 pub use crate::api::handlers::auth::{
     login,
     logout,
     register,
-    refresh_token,
+    get_test_account,
     get_current_user,
 };
 
@@ -18,6 +17,7 @@ pub use crate::api::handlers::users::{
     get_user,
     update_user,
     delete_user,
+    change_password,
 };
 
 // Project handlers
@@ -53,13 +53,7 @@ pub use crate::api::handlers::templates::{
     create_template,
     update_template,
     delete_template,
-};
-
-// API Key handlers
-pub use crate::api::handlers::api_keys::{
-    list_keys,
-    create_key,
-    revoke_key,
+    get_template,
 };
 
 // AI handlers
@@ -72,9 +66,7 @@ pub use crate::api::handlers::ai::{
     set_default_model,
 };
 
-// Log handlers
-pub use crate::api::handlers::logs::{
-    list_audit_logs,
-    list_ai_usage,
-};
+// 以下为未实现的功能（保留供未来扩展）
+// API Key handlers (TODO)
+// Log handlers (TODO)
 

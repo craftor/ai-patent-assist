@@ -12,50 +12,9 @@ use axum::{
     Router,
 };
 use std::sync::Arc;
-use tokio::net::TcpListener;
 
 use crate::config::Config;
-use crate::db::create_pool;
 use crate::services::AiGenerator;
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // 初始化日志
-    tracing_subscriber::fmt::init();
-
-    // 加载配置
-    let config = Config::load()?;
-    tracing::info!("Loaded config");
-    let config = Arc::new(config);
-
-    // 创建数据库连接池
-    let pool = create_pool(&config.database_url).await?;
-    tracing::info!("Database pool created");
-    let pool = Arc::new(pool);
-
-    // 初始化 AI 生成器
-    let ai_generator = AiGenerator::new(config.as_ref().clone());
-    let ai_generator = Arc::new(ai_generator);
-
-    // 构建服务器状态
-    let state = AppState {
-        pool: pool.clone(),
-        config: config.clone(),
-        ai_generator: ai_generator.clone(),
-    };
-
-    // 构建路由
-    let app = build_app(state);
-
-    // 启动服务器
-    let addr = "0.0.0.0:3000";
-    let listener = TcpListener::bind(addr).await?;
-    tracing::info!("Server listening on {}", addr);
-
-    axum::serve(listener, app).await?;
-
-    Ok(())
-}
 
 pub fn build_app(state: AppState) -> Router {
     // 公开路由（不需要认证）

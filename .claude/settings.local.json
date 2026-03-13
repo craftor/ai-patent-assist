@@ -42,7 +42,29 @@
       "Bash(/home/craftor/rust/ai-patent-assist/backend/.dockerignore:*)",
       "Bash(/home/craftor/rust/ai-patent-assist/frontend/.dockerignore:*)",
       "Bash(timeout 10 docker run:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Skill(code-review:code-review)",
+      "Bash(sudo service:*)",
+      "Bash(chmod +x /home/craftor/rust/ai-patent-assist/docker-test.sh)",
+      "Bash(find . -maxdepth 2 -name \"*.yml\" -o -name \"*.sh\" -o -name \"Dockerfile*\" -o -name \"*.md\" 2>/dev/null | grep -v node_modules | grep -v _bmad | grep -v target | sort)",
+      "Bash(pkill -f \"ai-patent-assist-backend\" 2>/dev/null; sleep 1; ps aux | grep -v grep | grep patent || echo \"No backend process running\")",
+      "Bash(pkill -f ai-patent-assist-backend 2>/dev/null || true; sleep 1)",
+      "Bash(lsof -ti:3000 | xargs kill -9 2>/dev/null || true; sleep 2)",
+      "Bash(netstat -tlnp 2>/dev/null | grep 3000 || ss -tlnp | grep 3000)",
+      "Bash(fuser -k 3000/tcp 2>/dev/null || true; sleep 2)",
+      "Bash(pkill -9 -f \"target/release/ai-patent-assist-backend\" 2>/dev/null; fuser -k 3000/tcp 2>/dev/null; sleep 3; netstat -tlnp 2>/dev/null | grep 3000 || echo \"Port 3000 is free\")",
+      "Bash(ss -tlnp | grep -E \"3000|3001\" || netstat -tlnp 2>/dev/null | grep -E \"3000|3001\")",
+      "Bash(sudo fuser:*)",
+      "Bash(SERVER_PORT=3002 DATABASE_URL=\"postgres://patent_user:patent_password@localhost:5432/patent_db\" JWT_SECRET=\"test-secret\" timeout 10 cargo run --release 2>&1 | head -20)",
+      "Bash(SERVER_PORT=3333 DATABASE_URL=\"postgres://patent_user:patent_password@localhost:5432/patent_db\" JWT_SECRET=\"test-secret\" timeout 8 cargo run --release 2>&1 | head -20)",
+      "Bash(echo \"=== 测试专利列表 API ===\" && TOKEN=\"test-admin-token-12345\" && curl -s -X GET http://localhost:3000/api/patents -H \"Authorization: Bearer $TOKEN\")",
+      "Bash(echo \"=== 测试项目列表 API ===\" && TOKEN=\"test-admin-token-12345\" && curl -s -X GET http://localhost:3000/api/projects -H \"Authorization: Bearer $TOKEN\")",
+      "Bash(echo \"=== 测试 AI 模型列表 API ===\" && TOKEN=\"test-admin-token-12345\" && curl -s -X GET http://localhost:3000/api/ai/models -H \"Authorization: Bearer $TOKEN\")",
+      "Bash(./docker-test.sh test:*)",
+      "Bash(bash /home/craftor/rust/ai-patent-assist/docker-test.sh test)",
+      "Bash(cargo test:*)",
+      "Bash(cargo fmt:*)",
+      "Bash(cargo clippy:*)"
     ]
   }
 }

@@ -21,18 +21,3 @@ pub struct AiModelConfig {
     pub priority: i32,
     pub metadata: Option<serde_json::Value>,
 }
-
-/// AI 使用日志
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AiUsageLog {
-    pub id: uuid::Uuid,
-    pub user_id: Option<uuid::Uuid>,
-    pub model_config_id: Option<uuid::Uuid>,
-    pub prompt_tokens: i32,
-    pub completion_tokens: i32,
-    pub total_tokens: i32,
-    pub cost: Option<f64>,
-    pub status: String,
-    pub error_message: Option<String>,
-    pub duration_ms: i32,
-}

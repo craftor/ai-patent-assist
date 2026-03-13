@@ -25,8 +25,9 @@ export const authApi = {
 
   logout: () => http.post('/auth/logout'),
 
-  refreshToken: (refreshToken: string) =>
-    http.post<LoginResponse>('/auth/refresh', { refresh_token: refreshToken }),
+  // TODO: 实现刷新 token 端点
+  // refreshToken: (refreshToken: string) =>
+  //   http.post<LoginResponse>('/auth/refresh', { refresh_token: refreshToken }),
 
   getCurrentUser: () => http.get<User>('/auth/me'),
 

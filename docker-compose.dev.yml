@@ -1,0 +1,93 @@
+# 开发环境 Docker 配置
+# 使用方式：docker compose -f docker-compose.dev.yml up --build
+
+services:
+  # PostgreSQL 数据库
+  postgres:
+    image: postgres:16-alpine
+    container_name: patent-postgres
+    environment:
+      POSTGRES_USER: patent_user
+      POSTGRES_PASSWORD: patent_password
+      POSTGRES_DB: patent_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/migrations:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U patent_user -d patent_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - patent-network
+
+  # Redis 缓存
+  redis:
+    image: redis:7-alpine
+    container_name: patent-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - patent-network
+
+  # 后端 Rust 服务
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: patent-backend
+    environment:
+      DATABASE_URL: postgres://patent_user:patent_password@postgres:5432/patent_db
+      JWT_SECRET: dev-secret-change-in-production
+      JWT_EXPIRY_HOURS: 24
+      SERVER_PORT: 3000
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    volumes:
+      - file_storage:/app/uploads
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - patent-network
+    restart: unless-stopped
+
+  # 前端 Vue 应用（开发模式）
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+      target: development
+    container_name: patent-frontend-dev
+    environment:
+      VITE_API_BASE_URL: http://localhost:3000/api
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    networks:
+      - patent-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  file_storage:
+    driver: local
+
+networks:
+  patent-network:
+    driver: bridge

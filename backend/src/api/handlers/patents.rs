@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::api::handlers::ApiResponse;
-use crate::AppState;
 use crate::models::AiModelConfig;
+use crate::AppState;
 
 /// 专利文档数据结构
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
@@ -68,9 +68,7 @@ pub struct UpdatePatentRequest {
 }
 
 /// 获取专利列表
-pub async fn list_patents(
-    State(state): State<AppState>,
-) -> Json<ApiResponse<Vec<PatentDocument>>> {
+pub async fn list_patents(State(state): State<AppState>) -> Json<ApiResponse<Vec<PatentDocument>>> {
     let patents = sqlx::query_as::<_, PatentDocument>(
         r#"SELECT
             id,
@@ -93,7 +91,7 @@ pub async fn list_patents(
             reviewed_at,
             created_at,
             updated_at
-        FROM patent_documents ORDER BY updated_at DESC"#
+        FROM patent_documents ORDER BY updated_at DESC"#,
     )
     .fetch_all(&*state.pool)
     .await;
@@ -134,7 +132,7 @@ pub async fn get_patent(
             reviewed_at,
             created_at,
             updated_at
-        FROM patent_documents WHERE id = $1"#
+        FROM patent_documents WHERE id = $1"#,
     )
     .bind(id)
     .fetch_optional(&*state.pool)
@@ -155,26 +153,30 @@ pub async fn generate_patent(
     State(state): State<AppState>,
     Json(payload): Json<GeneratePatentRequest>,
 ) -> Json<ApiResponse<PatentResponse>> {
-    match state.ai_generator.generate_patent(
-        &AiModelConfig {
-            id: uuid::Uuid::nil(),
-            provider: "anthropic".to_string(),
-            model_name: "claude-3-5-sonnet-20241022".to_string(),
-            api_key_encrypted: None,
-            api_endpoint: None,
-            max_tokens: 4096,
-            temperature: 0.7,
-            is_active: true,
-            priority: 1,
-            metadata: None,
-        },
-        &payload.title,
-        &payload.technical_field,
-        &payload.background_art,
-        &payload.invention_description,
-        &payload.embodiments.unwrap_or_default(),
-        payload.claims_input.as_deref(),
-    ).await {
+    match state
+        .ai_generator
+        .generate_patent(
+            &AiModelConfig {
+                id: uuid::Uuid::nil(),
+                provider: "anthropic".to_string(),
+                model_name: "claude-3-5-sonnet-20241022".to_string(),
+                api_key_encrypted: None,
+                api_endpoint: None,
+                max_tokens: 4096,
+                temperature: 0.7,
+                is_active: true,
+                priority: 1,
+                metadata: None,
+            },
+            &payload.title,
+            &payload.technical_field,
+            &payload.background_art,
+            &payload.invention_description,
+            &payload.embodiments.unwrap_or_default(),
+            payload.claims_input.as_deref(),
+        )
+        .await
+    {
         Ok(result) => Json(ApiResponse::success(PatentResponse {
             id: uuid::Uuid::new_v4().to_string(),
             title: payload.title,
@@ -227,7 +229,7 @@ pub async fn update_patent(
             reviewed_by,
             reviewed_at,
             created_at,
-            updated_at"#
+            updated_at"#,
     )
     .bind(id)
     .bind(payload.title)

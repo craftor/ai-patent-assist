@@ -2,9 +2,9 @@ use axum::{extract::State, Json};
 use serde::{Deserialize, Serialize};
 
 use crate::api::handlers::ApiResponse;
-use crate::models::UserResponse;
 use crate::auth::verify_password;
 use crate::middleware::generate_token;
+use crate::models::UserResponse;
 
 #[derive(Debug, Deserialize)]
 pub struct LoginRequest {
@@ -49,7 +49,7 @@ pub async fn login(
 
     // 从数据库验证用户
     match sqlx::query_as::<_, (String, String, String, String)>(
-        "SELECT id::text, username, email, password_hash FROM users WHERE username = $1"
+        "SELECT id::text, username, email, password_hash FROM users WHERE username = $1",
     )
     .bind(&payload.username)
     .fetch_optional(&*_state.pool)
@@ -169,7 +169,7 @@ pub async fn get_current_user(
 
     // 从数据库获取用户信息
     match sqlx::query_as::<_, (String, String, String)>(
-        "SELECT id::text, username, email FROM users WHERE id = $1::uuid"
+        "SELECT id::text, username, email FROM users WHERE id = $1::uuid",
     )
     .bind(&claims.sub)
     .fetch_optional(&*state.pool)

@@ -1,14 +1,13 @@
-use crate::models::AiModelConfig;
 use crate::config::Config;
+use crate::models::AiModelConfig;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use std::time::Instant;
+use uuid::Uuid;
 
 #[derive(Debug, Clone)]
 pub struct AiGenerator {
     client: Client,
-    config: Config,
 }
 
 #[derive(Debug, Serialize)]
@@ -43,10 +42,11 @@ struct Usage {
 }
 
 impl AiGenerator {
-    pub fn new(config: Config) -> Self {
+    /// 创建一个新的 AiGenerator 实例
+    /// 注意：config 参数目前未使用，但保留以供未来扩展
+    pub fn new(_config: Config) -> Self {
         Self {
             client: Client::new(),
-            config,
         }
     }
 
@@ -102,23 +102,26 @@ impl AiGenerator {
         );
 
         if let Some(claims) = claims_input {
-            user_prompt.push_str(&format!(
-                "\n\n【权利要求书初步构思】\n{}",
-                claims
-            ));
+            user_prompt.push_str(&format!("\n\n【权利要求书初步构思】\n{}", claims));
         }
 
-        let response = self.call_anthropic_api(
-            &model_config.model_name,
-            system_prompt,
-            &user_prompt,
-            model_config.max_tokens,
-        ).await?;
+        let response = self
+            .call_anthropic_api(
+                &model_config.model_name,
+                system_prompt,
+                &user_prompt,
+                model_config.max_tokens,
+            )
+            .await?;
 
         let duration = start.elapsed().as_millis() as i32;
 
         Ok(PatentGenerationResult {
-            content: response.content.first().map(|c| c.text.clone()).unwrap_or_default(),
+            content: response
+                .content
+                .first()
+                .map(|c| c.text.clone())
+                .unwrap_or_default(),
             input_tokens: response.usage.input_tokens,
             output_tokens: response.usage.output_tokens,
             duration_ms: duration,
@@ -184,17 +187,23 @@ impl AiGenerator {
             source_code_summary.unwrap_or("暂无")
         );
 
-        let response = self.call_anthropic_api(
-            &model_config.model_name,
-            system_prompt,
-            &user_prompt,
-            model_config.max_tokens,
-        ).await?;
+        let response = self
+            .call_anthropic_api(
+                &model_config.model_name,
+                system_prompt,
+                &user_prompt,
+                model_config.max_tokens,
+            )
+            .await?;
 
         let duration = start.elapsed().as_millis() as i32;
 
         Ok(CopyrightGenerationResult {
-            content: response.content.first().map(|c| c.text.clone()).unwrap_or_default(),
+            content: response
+                .content
+                .first()
+                .map(|c| c.text.clone())
+                .unwrap_or_default(),
             input_tokens: response.usage.input_tokens,
             output_tokens: response.usage.output_tokens,
             duration_ms: duration,
@@ -209,8 +218,7 @@ impl AiGenerator {
         user_prompt: &str,
         max_tokens: i32,
     ) -> Result<AnthropicResponse, Box<dyn std::error::Error>> {
-        let api_key = std::env::var("ANTHROPIC_API_KEY")
-            .unwrap_or_else(|_| "test-key".to_string());
+        let api_key = std::env::var("ANTHROPIC_API_KEY").unwrap_or_else(|_| "test-key".to_string());
 
         let request = AnthropicRequest {
             model: model.to_string(),
@@ -222,7 +230,8 @@ impl AiGenerator {
             system: Some(system_prompt.to_string()),
         };
 
-        let response = self.client
+        let response = self
+            .client
             .post("https://api.anthropic.com/v1/messages")
             .header("x-api-key", api_key)
             .header("anthropic-version", "2023-06-01")

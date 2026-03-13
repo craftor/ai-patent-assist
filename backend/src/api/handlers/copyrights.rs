@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::api::handlers::ApiResponse;
-use crate::AppState;
 use crate::models::AiModelConfig;
+use crate::AppState;
 
 /// 软著文档数据结构
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
@@ -109,7 +109,7 @@ pub async fn list_copyrights(
             reviewed_at,
             created_at,
             updated_at
-        FROM copyright_documents ORDER BY updated_at DESC"#
+        FROM copyright_documents ORDER BY updated_at DESC"#,
     )
     .fetch_all(&*state.pool)
     .await;
@@ -155,7 +155,7 @@ pub async fn get_copyright(
             reviewed_at,
             created_at,
             updated_at
-        FROM copyright_documents WHERE id = $1"#
+        FROM copyright_documents WHERE id = $1"#,
     )
     .bind(id)
     .fetch_optional(&*state.pool)
@@ -176,27 +176,31 @@ pub async fn generate_copyright(
     State(state): State<AppState>,
     Json(payload): Json<GenerateCopyrightRequest>,
 ) -> Json<ApiResponse<CopyrightResponse>> {
-    match state.ai_generator.generate_copyright(
-        &AiModelConfig {
-            id: uuid::Uuid::nil(),
-            provider: "anthropic".to_string(),
-            model_name: "claude-3-5-sonnet-20241022".to_string(),
-            api_key_encrypted: None,
-            api_endpoint: None,
-            max_tokens: 4096,
-            temperature: 0.7,
-            is_active: true,
-            priority: 1,
-            metadata: None,
-        },
-        &payload.software_name,
-        payload.software_version.as_deref(),
-        &payload.developer,
-        &payload.description,
-        &payload.function_features,
-        &payload.technical_features,
-        payload.source_code_summary.as_deref(),
-    ).await {
+    match state
+        .ai_generator
+        .generate_copyright(
+            &AiModelConfig {
+                id: uuid::Uuid::nil(),
+                provider: "anthropic".to_string(),
+                model_name: "claude-3-5-sonnet-20241022".to_string(),
+                api_key_encrypted: None,
+                api_endpoint: None,
+                max_tokens: 4096,
+                temperature: 0.7,
+                is_active: true,
+                priority: 1,
+                metadata: None,
+            },
+            &payload.software_name,
+            payload.software_version.as_deref(),
+            &payload.developer,
+            &payload.description,
+            &payload.function_features,
+            &payload.technical_features,
+            payload.source_code_summary.as_deref(),
+        )
+        .await
+    {
         Ok(result) => Json(ApiResponse::success(CopyrightResponse {
             id: uuid::Uuid::new_v4().to_string(),
             software_name: payload.software_name,
@@ -258,7 +262,7 @@ pub async fn update_copyright(
             reviewed_by,
             reviewed_at,
             created_at,
-            updated_at"#
+            updated_at"#,
     )
     .bind(id)
     .bind(payload.software_name)

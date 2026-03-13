@@ -1,26 +1,25 @@
-mod auth;
-mod projects;
-mod patents;
-mod copyrights;
-mod templates;
 mod ai;
+mod auth;
+mod copyrights;
+mod patents;
+mod projects;
+mod templates;
 mod users;
 
-pub use auth::{login, register, get_test_account, logout, get_current_user};
-pub use projects::{
-    list_projects,
-    get_project,
-    create_project,
-    update_project,
-    delete_project,
-    upload_attachment,
-    delete_attachment,
+pub use ai::{
+    add_model, delete_model, get_default_model, list_models, set_default_model, update_model,
 };
-pub use patents::{list_patents, get_patent, generate_patent, update_patent};
-pub use copyrights::{list_copyrights, get_copyright, generate_copyright, update_copyright};
-pub use templates::{list_templates, create_template, update_template, delete_template, get_template};
-pub use ai::{list_models, add_model, update_model, delete_model, get_default_model, set_default_model};
-pub use users::{list_users, get_user, update_user, delete_user, change_password};
+pub use auth::{get_current_user, get_test_account, login, logout, register};
+pub use copyrights::{generate_copyright, get_copyright, list_copyrights, update_copyright};
+pub use patents::{generate_patent, get_patent, list_patents, update_patent};
+pub use projects::{
+    create_project, delete_attachment, delete_project, get_project, list_projects, update_project,
+    upload_attachment,
+};
+pub use templates::{
+    create_template, delete_template, get_template, list_templates, update_template,
+};
+pub use users::{change_password, delete_user, get_user, list_users, update_user};
 
 use serde::{Deserialize, Serialize};
 
@@ -49,4 +48,3 @@ impl<T: Serialize> ApiResponse<T> {
         }
     }
 }
-

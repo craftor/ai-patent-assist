@@ -1,4 +1,8 @@
-use axum::{extract::{State, Path}, http::StatusCode, Json};
+use axum::{
+    extract::{Path, State},
+    http::StatusCode,
+    Json,
+};
 use uuid::Uuid;
 
 use crate::api::handlers::ApiResponse;
@@ -29,13 +33,12 @@ pub async fn add_model(
     Json(payload): Json<AddModelRequest>,
 ) -> Result<Json<ApiResponse<ModelResponse>>, StatusCode> {
     // 检查是否是第一个模型，如果是则设为默认
-    let is_first_model = sqlx::query_scalar::<_, bool>(
-        "SELECT NOT EXISTS(SELECT 1 FROM ai_model_configs)"
-    )
-    .fetch_one(&*state.pool)
-    .await
-    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
-    .unwrap_or(true);
+    let is_first_model =
+        sqlx::query_scalar::<_, bool>("SELECT NOT EXISTS(SELECT 1 FROM ai_model_configs)")
+            .fetch_one(&*state.pool)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+            .unwrap_or(true);
 
     let model: ModelResponse = sqlx::query_as(
         r#"INSERT INTO ai_model_configs (provider, model_name, api_key_encrypted, is_default)
@@ -90,14 +93,13 @@ pub async fn delete_model(
     Path(id): Path<Uuid>,
 ) -> Result<StatusCode, StatusCode> {
     // 检查是否是默认模型，如果是则不允许删除
-    let is_default = sqlx::query_scalar::<_, bool>(
-        "SELECT is_default FROM ai_model_configs WHERE id = $1"
-    )
-    .bind(&id)
-    .fetch_optional(&*state.pool)
-    .await
-    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-    .unwrap_or(false);
+    let is_default =
+        sqlx::query_scalar::<_, bool>("SELECT is_default FROM ai_model_configs WHERE id = $1")
+            .bind(&id)
+            .fetch_optional(&*state.pool)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+            .unwrap_or(false);
 
     if is_default {
         return Err(StatusCode::FORBIDDEN);
@@ -139,7 +141,7 @@ pub async fn set_default_model(
 ) -> Result<Json<ApiResponse<ModelResponse>>, StatusCode> {
     // 检查模型是否存在
     let exists = sqlx::query_scalar::<_, bool>(
-        "SELECT EXISTS(SELECT 1 FROM ai_model_configs WHERE id = $1)"
+        "SELECT EXISTS(SELECT 1 FROM ai_model_configs WHERE id = $1)",
     )
     .bind(&id)
     .fetch_one(&*state.pool)

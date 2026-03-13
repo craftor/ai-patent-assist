@@ -12,6 +12,8 @@
 - **模板管理**: 可自定义文档模板
 - **JWT 认证**: 完整的用户认证和授权系统
 - **Docker 一键部署**: 支持 Docker Compose 和 Kubernetes 部署
+- **响应式设计**: 支持桌面、平板、移动端多种设备
+- **通用组件库**: DataTable、FormDialog 等可复用组件
 
 ## 测试账号
 
@@ -27,18 +29,19 @@
 - Pinia 状态管理
 - Vue Router 路由
 - Axios HTTP 客户端
+- Vite 构建工具
 
 ### 后端
-- Rust + Axum Web 框架
+- Rust 1.75+
+- Axum 0.8 Web 框架
 - PostgreSQL 数据库
-- Redis 缓存
 - SQLx 异步数据库访问
 - JWT 认证
 - Argon2 密码哈希
 
 ### 部署
 - Docker + Docker Compose
-- Kubernetes
+- GitHub Actions CI/CD
 - Nginx
 
 ## 快速开始
@@ -118,9 +121,11 @@ ai-patent-assist/
 │   │   ├── auth/           # 认证模块
 │   │   ├── config/         # 配置管理
 │   │   ├── db/             # 数据库访问
+│   │   ├── middleware/     # JWT 认证中间件
 │   │   ├── models/         # 数据模型
 │   │   ├── services/       # 业务服务
-│   │   └── main.rs         # 入口文件
+│   │   └── lib.rs          # 库入口文件
+│   ├── tests/              # 集成测试
 │   ├── migrations/         # 数据库迁移
 │   ├── Cargo.toml
 │   └── Dockerfile
@@ -128,26 +133,21 @@ ai-patent-assist/
 ├── frontend/               # Vue 前端
 │   ├── src/
 │   │   ├── api/           # API 客户端
-│   │   ├── layouts/       # 布局组件
+│   │   ├── components/    # 通用组件 (DataTable, FormDialog)
+│   │   ├── layouts/       # 布局组件 (响应式 MainLayout)
 │   │   ├── pages/         # 页面组件
 │   │   ├── router/        # 路由配置
-│   │   ├── stores/        # Pinia 状态
+│   │   ├── stores/        # Pinia 状态 (user, app)
 │   │   └── main.ts        # 入口文件
 │   ├── package.json
 │   ├── Dockerfile
 │   └── nginx.conf
 │
+├── .github/workflows/      # GitHub Actions CI/CD
 ├── deploy/                 # 部署配置
 │   ├── docker-compose.yml
 │   ├── docker-compose.prod.yml
 │   └── kubernetes/
-│       ├── namespace.yaml
-│       ├── configmap.yaml
-│       ├── secrets.yaml
-│       ├── postgres-*.yaml
-│       ├── redis-*.yaml
-│       ├── backend-*.yaml
-│       └── frontend-*.yaml
 │
 ├── docs/                   # 文档
 ├── .env.example           # 环境变量示例
@@ -200,13 +200,19 @@ cargo install sqlx-cli --no-default-features --features postgres
 cargo install
 
 # 运行数据库迁移
-sqlx migrate run
+cargo sqlx migrate run
 
 # 启动开发服务器
 cargo run
 
 # 运行测试
-cargo test
+cargo test --test integration
+
+# 代码格式化
+cargo fmt
+
+# 代码检查
+cargo clippy --all-targets --all-features -- -D warnings
 ```
 
 ### 前端开发
@@ -269,3 +275,108 @@ MIT License
 
 - Email: your-email@example.com
 - Issues: https://github.com/your-org/ai-patent-assist/issues
+
+## 附录：通用组件使用指南
+
+### DataTable 组件
+
+通用数据表格组件，支持分页、排序、筛选等功能。
+
+```vue
+<template>
+  <DataTable
+    :data="tableData"
+    :columns="columns"
+    :loading="loading"
+    :pagination="pagination"
+    searchable
+    refreshable
+    @search="handleSearch"
+    @refresh="handleRefresh"
+    @edit="handleEdit"
+    @delete="handleDelete"
+    @page-change="handlePageChange"
+  >
+    <template #toolbar-left>
+      <el-button type="primary" @click="handleAdd">新增</el-button>
+    </template>
+
+    <template #status="{ row }">
+      <el-tag :type="getStatusType(row.status)">
+        {{ getStatusLabel(row.status) }}
+      </el-tag>
+    </template>
+  </DataTable>
+</template>
+
+<script setup lang="ts">
+import { DataTable } from '@/components'
+import type { TableColumn } from '@/components'
+
+const columns: TableColumn[] = [
+  { prop: 'name', label: '名称', minWidth: 150 },
+  { prop: 'type', label: '类型', width: 100 },
+  { prop: 'status', label: '状态', width: 100, slotName: 'status' },
+  { prop: 'createdAt', label: '创建时间', width: 180, sortable: true },
+]
+</script>
+```
+
+### FormDialog 组件
+
+通用表单对话框组件，支持动态表单字段配置。
+
+```vue
+<template>
+  <FormDialog
+    v-model="dialogVisible"
+    title="编辑项目"
+    :form-data="formData"
+    :fields="formFields"
+    :form-rules="formRules"
+    :loading="submitting"
+    @submit="handleSubmit"
+    @cancel="handleCancel"
+  />
+</template>
+
+<script setup lang="ts">
+import { FormDialog, type FormField } from '@/components'
+import type { FormRules } from 'element-plus'
+
+const formData = ref({
+  name: '',
+  type: 'patent',
+  description: '',
+})
+
+const formFields: FormField[] = [
+  {
+    prop: 'name',
+    label: '项目名称',
+    type: 'input',
+    required: true,
+    placeholder: '请输入项目名称',
+  },
+  {
+    prop: 'type',
+    label: '项目类型',
+    type: 'select',
+    options: [
+      { label: '专利', value: 'patent' },
+      { label: '软著', value: 'copyright' },
+    ],
+  },
+  {
+    prop: 'description',
+    label: '项目描述',
+    type: 'textarea',
+    rows: 4,
+  },
+]
+
+const formRules: FormRules = {
+  name: [{ required: true, message: '请输入项目名称', trigger: 'blur' }],
+}
+</script>
+```
