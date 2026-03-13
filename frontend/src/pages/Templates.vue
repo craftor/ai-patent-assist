@@ -412,11 +412,11 @@ const isSystem = (row: Template): boolean => {
 const fetchTemplates = async () => {
   loading.value = true
   try {
-    const response = await templateApi.list()
+    const response = await templateApi.listSilent()
     templates.value = response.data || []
   } catch (error) {
     console.error('Failed to fetch templates:', error)
-    ElMessage.error('加载模板列表失败')
+    // 静默失败，不显示错误消息
   } finally {
     loading.value = false
   }

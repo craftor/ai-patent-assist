@@ -37,6 +37,8 @@ export interface UpdateTemplateParams {
 export const templateApi = {
   list: () => http.get<Template[]>('/templates'),
 
+  listSilent: () => http.getSilent<Template[]>('/templates'),
+
   get: (id: string) => http.get<Template>(`/templates/${id}`),
 
   create: (data: CreateTemplateParams) =>

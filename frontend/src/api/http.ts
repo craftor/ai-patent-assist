@@ -15,6 +15,13 @@ export interface ApiResponse<T> {
   }
 }
 
+// 扩展 AxiosRequestConfig 以支持静默错误处理
+declare module 'axios' {
+  interface AxiosRequestConfig {
+    skipErrorHandling?: boolean
+  }
+}
+
 // 请求缓存
 const pendingRequests = new Map<string, any>()
 
@@ -79,10 +86,13 @@ class HttpClient {
         const { data } = response
 
         if (!data.success) {
-          // 优先使用 error.message，如果没有则使用 message 字段
-          const errorMsg = data.error?.message || data.message || '请求失败'
-          ElMessage.error(errorMsg)
-          return Promise.reject(new Error(errorMsg))
+          // 如果配置了跳过错误处理，则不显示错误消息
+          if (!response.config.skipErrorHandling) {
+            // 优先使用 error.message，如果没有则使用 message 字段
+            const errorMsg = data.error?.message || data.message || '请求失败'
+            ElMessage.error(errorMsg)
+          }
+          return Promise.reject(new Error(data.error?.message || data.message || '请求失败'))
         }
 
         return response
@@ -96,6 +106,11 @@ class HttpClient {
 
         // 取消请求不显示错误
         if (axios.isCancel(error)) {
+          return Promise.reject(error)
+        }
+
+        // 如果配置了跳过错误处理，则不显示错误消息
+        if (error.config?.skipErrorHandling) {
           return Promise.reject(error)
         }
 
@@ -154,6 +169,29 @@ class HttpClient {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
+    })
+    return response.data
+  }
+
+  /**
+   * 静默 GET 请求 - 失败时不显示错误消息
+   * 适用于健康检查、可选数据加载等场景
+   */
+  async getSilent<T>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
+    const response = await this.instance.get(url, {
+      ...config,
+      skipErrorHandling: true,
+    })
+    return response.data
+  }
+
+  /**
+   * 静默 POST 请求 - 失败时不显示错误消息
+   */
+  async postSilent<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
+    const response = await this.instance.post(url, data, {
+      ...config,
+      skipErrorHandling: true,
     })
     return response.data
   }

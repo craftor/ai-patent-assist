@@ -343,7 +343,7 @@ const loadUserProfile = async () => {
 // 检查后端健康状态
 const checkBackendHealth = async () => {
   try {
-    const response = await http.get('/health')
+    const response = await http.getSilent('/health')
     backendHealth.value = true
   } catch (error) {
     backendHealth.value = false
@@ -353,7 +353,7 @@ const checkBackendHealth = async () => {
 // 加载 AI 模型列表
 const loadModelList = async () => {
   try {
-    const response = await http.get<AIModel[]>('/ai/models')
+    const response = await http.getSilent<AIModel[]>('/ai/models')
     if (response.data) {
       modelList.value = response.data
     }
