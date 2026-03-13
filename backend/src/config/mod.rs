@@ -116,19 +116,32 @@ impl Config {
         }
 
         // 验证 Anthropic API Key
-        if self.anthropic_api_key.is_empty() {
-            return Err(ConfigError {
-                field: "anthropic_api_key".to_string(),
-                message: "Anthropic API Key 不能为空".to_string(),
-            });
-        }
-
-        // 验证 API Key 格式（应该以 sk- 开头）
-        if !self.anthropic_api_key.starts_with("sk-") && !is_dev_environment() {
-            return Err(ConfigError {
-                field: "anthropic_api_key".to_string(),
-                message: "生产环境中 Anthropic API Key 应该以 sk- 开头".to_string(),
-            });
+        // 在开发环境中允许空值或测试密钥
+        if is_dev_environment() {
+            // 开发环境：允许空值或使用测试密钥
+            if !self.anthropic_api_key.is_empty() && self.anthropic_api_key != "test-key" {
+                // 如果提供了密钥，验证格式
+                if !self.anthropic_api_key.starts_with("sk-") {
+                    return Err(ConfigError {
+                        field: "anthropic_api_key".to_string(),
+                        message: "开发环境中 Anthropic API Key 应该以 sk- 开头或是 test-key".to_string(),
+                    });
+                }
+            }
+        } else {
+            // 生产环境：必须提供有效的 API Key
+            if self.anthropic_api_key.is_empty() {
+                return Err(ConfigError {
+                    field: "anthropic_api_key".to_string(),
+                    message: "Anthropic API Key 不能为空".to_string(),
+                });
+            }
+            if !self.anthropic_api_key.starts_with("sk-") {
+                return Err(ConfigError {
+                    field: "anthropic_api_key".to_string(),
+                    message: "Anthropic API Key 应该以 sk- 开头".to_string(),
+                });
+            }
         }
 
         Ok(())
@@ -145,10 +158,20 @@ impl Config {
 
 /// 检查是否是开发环境（独立函数）
 fn is_dev_environment() -> bool {
-    std::env::var("RUST_ENV")
-        .or_else(|_| std::env::var("APP_ENV"))
-        .unwrap_or_else(|_| "development".to_string())
-        == "development"
+    // 检查是否明确设置了环境变量
+    if let Ok(val) = std::env::var("RUST_ENV") {
+        return val == "development";
+    }
+    if let Ok(val) = std::env::var("APP_ENV") {
+        return val == "development";
+    }
+    // 检查是否在 Docker 容器中（通过容器环境文件判断）
+    if std::path::Path::new("/.dockerenv").exists() {
+        // 在 Docker 容器中，如果没有明确设置生产环境，默认按开发环境处理
+        return std::env::var("RUST_ENV").is_err() && std::env::var("APP_ENV").is_err();
+    }
+    // 默认开发环境
+    true
 }
 
 #[cfg(test)]
